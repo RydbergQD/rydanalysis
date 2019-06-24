@@ -1,19 +1,21 @@
 import os
 from os.path import join, basename, isdir, isfile
-from collections import Mapping
+from collections import MutableMapping
 from yaml import dump
+from shutil import copytree, copyfile, rmtree
 
 
-def dir_to_dict(path, include_files=False):
+def dir_to_dict(path: str, include_files=False):
     directory = {}
 
-    for name, names, filenames in os.walk(path):
-        dn = os.path.basename(name)
+    for root, dirs, filenames in os.walk(path):
+        dn = os.path.basename(root)
         directory[dn] = []
 
-        if names:
-            for d in names:
-                directory[dn].append(dir_to_dict(os.path.join(path, d), include_files))
+        if dirs:
+            for d in dirs:
+                # noinspection PyTypeChecker
+                directory[dn].append(dir_to_dict(path=join(path, d), include_files=include_files))
 
             if include_files:
                 for f in filenames:
@@ -24,9 +26,9 @@ def dir_to_dict(path, include_files=False):
         return directory
 
 
-class Directory(Mapping):
+class Directory(MutableMapping):
 
-    def __init__(self, path, *args, **kwargs):
+    def __init__(self, path):
         self.path = path
         self.__name__ = basename(path)
 
@@ -35,13 +37,33 @@ class Directory(Mapping):
         if os.path.isdir(folder):
             return Directory(folder)
         else:
-            return folder
+            return File(folder)
+
+    def __setitem__(self, key: str, file_or_dir):
+        if isinstance(file_or_dir, Directory):
+            copytree(file_or_dir.path, join(self.path, key))
+        else:
+            try:
+                copyfile(file_or_dir.path, join(self.path, key))
+            except PermissionError:
+                if key in self:
+                    raise FileExistsError("[WinError 183] Cannot create a file when that file already exists: "
+                                          + self[key].path)
+                else:
+                    raise PermissionError
+
+    def __delitem__(self, key):
+        folder = join(self.path, key)
+        if os.path.isdir(folder):
+            return rmtree(folder)
+        else:
+            return os.remove(folder)
 
     def __iter__(self):
         for key in os.listdir(self.path):
             folder = join(self.path, key)
             if isdir(folder):
-                yield Directory(folder)
+                yield folder
 
     def iter_files(self):
         for key in os.listdir(self.path):
@@ -62,3 +84,19 @@ class Directory(Mapping):
 
     def structure(self, include_files=False):
         print(dump(dir_to_dict(self.path, include_files)))
+
+
+class File:
+    def __init__(self, path):
+        self.path = path
+
+    def open(self):
+        raise NotImplementedError("File type is not yet implemented")
+
+    def __repr__(self):
+        return "file: " + self.path
+
+    @property
+    def file_type(self):
+        file_name = basename(self.path)
+        return file_name.split('.')[-1]
