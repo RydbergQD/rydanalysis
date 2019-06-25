@@ -3,6 +3,7 @@ from rydanalysis.IO.directory import Directory
 import pandas as pd
 from astropy.io import fits
 
+
 class SingleShot(Directory):
     """
     Analysis of a single experimental run.
@@ -43,3 +44,7 @@ class SingleShot(Directory):
     @property
     def variable(self):
         return pd.read_csv(self['exp_data']['variables.csv'].path, index_col=0, squeeze=True)
+
+    @property
+    def tmstp(self):
+        return pd.to_datetime(self.__name__, format='%Y_%m_%d_%H.%M.%S')
