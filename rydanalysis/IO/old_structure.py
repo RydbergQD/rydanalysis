@@ -31,7 +31,12 @@ class OldStructure(Directory):
         return self['FITS Files'][tmstp.strftime(strftime + '_full.fts')]
 
     def get_scope_trace(self, tmstp):
-        return self['Scope Traces'][tmstp.strftime(strftime + '_C1.csv')]
+        path = self['Scope Traces'][tmstp.strftime(strftime + '_C1.csv')].path
+        scope_trace = pd.read_csv(path, index_col=0, sep='\t', header=None,
+                                  decimal=',', squeeze=True)
+        scope_trace.name = 'MCP'
+        scope_trace.index.name = 'time'
+        return scope_trace
 
     def get_voltage(self, tmstp):
         return self['Voltages'][tmstp.strftime('voltages_' + strftime + '.xml')]
@@ -41,7 +46,8 @@ class OldStructure(Directory):
         new['variable.txt'] = self.get_variable(tmstp)
         new['exp_seq.xml'] = self.get_exp_seq(tmstp)
         new['image.fits'] = self.get_fits(tmstp)
-        new['scope_trace.csv'] = self.get_scope_trace(tmstp)
+        scope_trace = self.get_scope_trace(tmstp)
+        scope_trace.to_csv(join(new.path, 'scope_trace.csv'))
         new['voltage.xml'] = self.get_voltage(tmstp)
         old_la = self.get_old_la_from_tmstp(tmstp)
         dir_analysis = join(path, tmstp.strftime(strftime), 'analysis')
