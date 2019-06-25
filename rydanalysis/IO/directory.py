@@ -29,6 +29,8 @@ def dir_to_dict(path: str, include_files=False):
 class Directory(MutableMapping):
 
     def __init__(self, path):
+        if not isdir(path):
+            os.makedirs(path)
         self.path = path
         self.__name__ = basename(path)
 
@@ -41,7 +43,6 @@ class Directory(MutableMapping):
         else:
             raise KeyError(key)
 
-
     def __setitem__(self, key: str, file_or_dir):
         if isinstance(file_or_dir, Directory):
             copytree(file_or_dir.path, join(self.path, key))
@@ -49,7 +50,7 @@ class Directory(MutableMapping):
             raise FileExistsError("[WinError 183] Cannot create a file when that file already exists: "
                                   + self[key].path)
         else:
-           copyfile(file_or_dir.path, join(self.path, key))
+            copyfile(file_or_dir.path, join(self.path, key))
 
     def __delitem__(self, key):
         folder = join(self.path, key)
