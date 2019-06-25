@@ -22,7 +22,12 @@ class OldStructure(Directory):
         return tmstps
 
     def get_variable(self, tmstp):
-        return self['Variables'][tmstp.strftime(strftime + '.txt')]
+        path = self['Variables'][tmstp.strftime(strftime + '.txt')].path
+        variables = pd.read_csv(path, index_col=0, squeeze=True, sep='\t',
+                                decimal=',', header=None)
+        variables.name = 'variables'
+        variables.index.name = 'variable'
+        return variables
 
     def get_exp_seq(self, tmstp):
         return self['Experimental Sequences'][tmstp.strftime(strftime + '.xml')]
@@ -43,16 +48,17 @@ class OldStructure(Directory):
 
     def create_new_from_tmstp(self, path, tmstp):
         new = Directory(join(path, tmstp.strftime(strftime), 'exp_data'))
-        new['variable.txt'] = self.get_variable(tmstp)
         new['exp_seq.xml'] = self.get_exp_seq(tmstp)
+        variables = self.get_variable(tmstp)
+        variables.to_csv(join(new.path, 'variables.csv'), header=True)
         new['image.fits'] = self.get_fits(tmstp)
         scope_trace = self.get_scope_trace(tmstp)
-        scope_trace.to_csv(join(new.path, 'scope_trace.csv'))
+        scope_trace.to_csv(join(new.path, 'scope_trace.csv'), header=True)
         new['voltage.xml'] = self.get_voltage(tmstp)
         old_la = self.get_old_la_from_tmstp(tmstp)
         dir_analysis = join(path, tmstp.strftime(strftime), 'analysis')
         os.makedirs(dir_analysis)
-        old_la.to_csv(join(dir_analysis, 'old_la.csv'))
+        old_la.to_csv(join(dir_analysis, 'old_la.csv'), header=True)
         return new
 
     def create_new(self, path):

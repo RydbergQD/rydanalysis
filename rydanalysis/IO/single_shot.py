@@ -1,7 +1,7 @@
 from rydanalysis.IO.directory import Directory
 
 import pandas as pd
-
+from astropy.io import fits
 
 class SingleShot(Directory):
     """
@@ -32,12 +32,14 @@ class SingleShot(Directory):
 
     @property
     def image(self):
-        pass
+        with fits.open(self['exp_data']['image.fits'].path) as image:
+            image_data = image[0].data
+        return image_data
 
     @property
     def scope_trace(self):
-        pass
+        return pd.read_csv(self['exp_data']['scope_trace.csv'].path, squeeze=True, index_col=0)
 
     @property
     def variable(self):
-        pass
+        return pd.read_csv(self['exp_data']['variables.csv'].path, index_col=0, squeeze=True)
