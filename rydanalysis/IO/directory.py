@@ -85,6 +85,9 @@ class Directory(MutableMapping):
     def structure(self, include_files=False):
         print(dump(dir_to_dict(self.path, include_files)))
 
+    def rmtree(self):
+        rmtree(self.path)
+
 
 class File:
     def __init__(self, path):
