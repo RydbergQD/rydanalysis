@@ -33,24 +33,23 @@ class Directory(MutableMapping):
         self.__name__ = basename(path)
 
     def __getitem__(self, key):
-        folder = join(self.path, key)
-        if os.path.isdir(folder):
-            return Directory(folder)
+        path = join(self.path, key)
+        if os.path.isdir(path):
+            return Directory(path)
+        elif os.path.isfile(path):
+            return File(path)
         else:
-            return File(folder)
+            raise KeyError(key)
+
 
     def __setitem__(self, key: str, file_or_dir):
         if isinstance(file_or_dir, Directory):
             copytree(file_or_dir.path, join(self.path, key))
+        elif key in self:
+            raise FileExistsError("[WinError 183] Cannot create a file when that file already exists: "
+                                  + self[key].path)
         else:
-            try:
-                copyfile(file_or_dir.path, join(self.path, key))
-            except PermissionError:
-                if key in self:
-                    raise FileExistsError("[WinError 183] Cannot create a file when that file already exists: "
-                                          + self[key].path)
-                else:
-                    raise PermissionError
+           copyfile(file_or_dir.path, join(self.path, key))
 
     def __delitem__(self, key):
         folder = join(self.path, key)
