@@ -1,4 +1,5 @@
 from rydanalysis.IO.directory import Directory
+from rydanalysis.IO.exp_sequence import ExpSequence
 
 import pandas as pd
 import os
@@ -50,7 +51,7 @@ class OldStructure(Directory):
         new = Directory(join(path, tmstp.strftime(strftime), 'exp_data'))
         new['exp_seq.xml'] = self.get_exp_seq(tmstp)
         variables = self.get_variable(tmstp)
-        variables.to_csv(join(new.path, 'variables.csv'), header=True)
+        variables.to_csv(join(new.path, 'parameters.csv'), header=True)
         new['image.fits'] = self.get_fits(tmstp)
         scope_trace = self.get_scope_trace(tmstp)
         scope_trace.to_csv(join(new.path, 'scope_trace.csv'), header=True)
@@ -62,7 +63,7 @@ class OldStructure(Directory):
         return new
 
     def create_new(self, path):
-        new = Directory(path)
+        new = ExpSequence(path)
         for tmstp in tqdm(self.tmstps):
             if tmstp.strftime(strftime) in new:
                 del new[tmstp.strftime(strftime)]

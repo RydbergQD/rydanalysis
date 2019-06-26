@@ -2,6 +2,7 @@ from rydanalysis.IO.directory import Directory
 
 import pandas as pd
 from astropy.io import fits
+from os.path import basename
 
 
 class SingleShot(Directory):
@@ -25,6 +26,8 @@ class SingleShot(Directory):
 
     """
     def __init__(self, path):
+        if not is_single_shot(path):
+            raise KeyError("The directory name of a single shot should be in format '%Y_%m_%d_%H.%M.%S'")
         super(SingleShot, self).__init__(path)
 
     @property
@@ -42,13 +45,21 @@ class SingleShot(Directory):
         return pd.read_csv(self['exp_data']['scope_trace.csv'].path, squeeze=True, index_col=0)
 
     @property
-    def variable(self):
-        return pd.read_csv(self['exp_data']['variables.csv'].path, index_col=0, squeeze=True)
+    def parameters(self):
+        return pd.read_csv(self['exp_data']['parameters.csv'].path, index_col=0, squeeze=True)
 
     @property
     def tmstp(self):
         return pd.to_datetime(self.__name__, format='%Y_%m_%d_%H.%M.%S')
 
+    def __repr__(self):
+        return "Single shot: " + self.path
+
 
 def is_single_shot(path):
-    shot =
+    name = basename(path)
+    try:
+        pd.to_datetime(name, format='%Y_%m_%d_%H.%M.%S')
+        return True
+    except ValueError:
+        return False
