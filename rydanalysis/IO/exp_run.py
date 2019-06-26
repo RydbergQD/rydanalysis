@@ -17,9 +17,9 @@ class SingleShotWithItem:
         return SingleShot(path)
 
 
-class ExpRun(Directory):
+class ExpSequence(Directory):
     def __init__(self, path):
-        super(ExpRun, self).__init__(path)
+        super(ExpSequence, self).__init__(path)
 
     def __getitem__(self, key):
         path = join(self.path, key)

@@ -48,3 +48,7 @@ class SingleShot(Directory):
     @property
     def tmstp(self):
         return pd.to_datetime(self.__name__, format='%Y_%m_%d_%H.%M.%S')
+
+
+def is_single_shot(path):
+    shot =
