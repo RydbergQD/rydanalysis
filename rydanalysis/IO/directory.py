@@ -99,7 +99,6 @@ class Directory(MutableMapping):
         for key in os.listdir(self.path):
             folder = join(self.path, key)
             yield folder
-
     def iter_dirs(self):
         for key in os.listdir(self.path):
             folder = join(self.path, key)

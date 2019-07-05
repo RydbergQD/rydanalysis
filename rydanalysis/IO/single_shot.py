@@ -2,8 +2,7 @@ from rydanalysis.IO.directory import Directory
 
 import pandas as pd
 from astropy.io import fits
-from os.path import basename
-
+from os.path import basename, join
 
 class SingleShot(Directory):
     """
@@ -52,10 +51,19 @@ class SingleShot(Directory):
     def tmstp(self):
         return pd.to_datetime(self.__name__, format='%Y_%m_%d_%H.%M.%S')
 
+    @property
+    def optical_density(self):
+        return read_fits(self['analysis']['od.fits'].path) 
+
+    @optical_density.setter
+    def optical_density(self, image):
+        write_fits(image, join(self['analysis'].path,'od.fits'))
+
     def __repr__(self):
         return "Single shot: " + self.path
 
 
+        
 def is_single_shot(path):
     name = basename(path)
     try:
@@ -63,3 +71,18 @@ def is_single_shot(path):
         return True
     except ValueError:
         return False
+    
+def write_fits(images,path):
+    if images.ndim == 2:
+        images = [images]
+    elif images.ndim == 3:
+        pass
+    else:
+        raise "input must be 2Darray or list of 2Darrays"
+    hdul = fits.HDUList([fits.PrimaryHDU(images)])
+    hdul.writeto(path)
+    
+def read_fits(path):
+    with fits.open(path) as image:
+        image_data = image[0].data
+    return image_data
