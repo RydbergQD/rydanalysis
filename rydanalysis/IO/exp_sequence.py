@@ -64,6 +64,18 @@ class ExpSequence(Directory):
     def __repr__(self):
         return "Experimental Sequence: " + self.path
 
+    def iter_matching_shots(self, var):
+        """
+        iterate over shots that mach var
+        """
+        selection = self.variables[self.variables[var].values == list(var.values())]
+        for tmstp in selection.index:
+            key=tmstp.strftime('%Y_%m_%d_%H.%M.%S')
+            folder = join(self.path, key)
+            print(folder)
+            if is_single_shot(folder):
+                yield SingleShot(folder)
+    
 
 def is_exp_sequence(path):
     directory = Directory(path)
