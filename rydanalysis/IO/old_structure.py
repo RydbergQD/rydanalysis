@@ -91,4 +91,6 @@ class OldStructure(Directory):
     def get_old_la_from_tmstp(self, tmstp):
         time = tmstp.hour * 60*60 + tmstp.minute * 60 + tmstp.second
         old_la = self.old_la
-        return old_la.loc[time]
+        old_la = old_la.loc[time]
+        old_la.name = tmstp
+        return old_la

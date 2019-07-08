@@ -4,6 +4,7 @@ import pandas as pd
 from astropy.io import fits
 from os.path import basename, join
 
+
 class SingleShot(Directory):
     """
     Analysis of a single experimental run.
@@ -57,13 +58,12 @@ class SingleShot(Directory):
 
     @optical_density.setter
     def optical_density(self, image):
-        write_fits(image, join(self['analysis'].path,'od.fits'))
+        write_fits(image, join(self['analysis'].path, 'od.fits'))
 
     def __repr__(self):
         return "Single shot: " + self.path
 
 
-        
 def is_single_shot(path):
     name = basename(path)
     try:
@@ -71,17 +71,19 @@ def is_single_shot(path):
         return True
     except ValueError:
         return False
-    
-def write_fits(images,path):
+
+
+def write_fits(images, path):
     if images.ndim == 2:
         images = [images]
     elif images.ndim == 3:
         pass
     else:
-        raise "input must be 2Darray or list of 2Darrays"
+        raise IOError("input must be 2Darray or list of 2Darrays")
     hdul = fits.HDUList([fits.PrimaryHDU(images)])
     hdul.writeto(path)
-    
+
+
 def read_fits(path):
     with fits.open(path) as image:
         image_data = image[0].data
