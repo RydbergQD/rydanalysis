@@ -7,7 +7,6 @@ import pandas as pd
 import numpy as np
 
 
-
 class SingleShotWithItem:
     def __init__(self, get_path):
         self.get_path = get_path
@@ -25,8 +24,8 @@ class ExpSequence(Directory):
         super(ExpSequence, self).__init__(path)
         self.parameters, self.variables, self.var_grid = self.parse_variables()
         # create sequence analysis dir
-        self.analysis = Directory(join(path,'analysis'))
-        self.averaged_images = Directory(join(self.analysis.path,'averaged_images'))
+        self.analysis = Directory(join(path, 'analysis'))
+        self.averaged_images = Directory(join(self.analysis.path, 'averaged_images'))
         
     def parse_variables(self):
         parameters = pd.DataFrame()
@@ -50,7 +49,7 @@ class ExpSequence(Directory):
         # create meshgrid of variable values as df
         list_val = [np.array(list(set(variables[col].values))) for col in variables]
         val_mesh = np.meshgrid(*list_val)
-        var_grid = pd.DataFrame(dict(zip(variables,val_mesh)))
+        var_grid = pd.DataFrame(dict(zip(variables, val_mesh)))
         return parameters, variables, var_grid
 
     def __getitem__(self, key):
@@ -74,33 +73,33 @@ class ExpSequence(Directory):
     def __repr__(self):
         return "Experimental Sequence: " + self.path
 
-    
     def iter_matching_shots(self, var):
         """
         iterate over shots that mach var
         """
-        selection = match_rows(self.variables,var)
+        selection = match_rows(self.variables, var)
         for tmstp in selection.index:
-            key=tmstp.strftime('%Y_%m_%d_%H.%M.%S')
+            key = tmstp.strftime('%Y_%m_%d_%H.%M.%S')
             folder = join(self.path, key)
             print(folder)
             if is_single_shot(folder):
                 yield SingleShot(folder)
     
-    def get_averaged_image(self,var):
-        num = match_rows(self.var_grid,var).index[0]
+    def get_averaged_image(self, var):
+        num = match_rows(self.var_grid, var).index[0]
         image = read_fits(self.averaged_images['averaged_od_{:04d}.fits'.format(num)].path)
         return image
     
-    def set_averaged_image(self,image,var):
-        num = match_rows(self.var_grid,var).index[0]
+    def set_averaged_image(self, image, var):
+        num = match_rows(self.var_grid, var).index[0]
         print(num)
-        write_fits(image,join(self.averaged_images.path,'averaged_od_{:04d}.fits'.format(num)))
+        write_fits(image, join(self.averaged_images.path, 'averaged_od_{:04d}.fits'.format(num)))
 
     def iter_averaged_images(self):
         for key in os.listdir(self.averaged_images.path):
             path = join(self.averaged_images.path, key)
             yield read_fits(path)
+
 
 def is_exp_sequence(path):
     directory = Directory(path)
@@ -109,12 +108,11 @@ def is_exp_sequence(path):
             return True
     return False
 
-def match_rows(df,var):
+
+def match_rows(df, var):
     """
     return those rows of a dataframe that match the var (dict)
     """
     select = (df[var].values == list(var.values()))
     select = select.all(axis=1)
     return df[select]
-    
-    
