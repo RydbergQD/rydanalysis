@@ -7,6 +7,7 @@ import pandas as pd
 import numpy as np
 
 
+
 class SingleShotWithItem:
     def __init__(self, get_path):
         self.get_path = get_path
