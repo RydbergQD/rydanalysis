@@ -5,6 +5,56 @@ from yaml import dump
 from shutil import copytree, copyfile, rmtree
 
 
+def load(path, h5_group=None):
+    if h5_group is None:
+        return load_path(path)
+    else:
+        return load_h5(path, h5_group)
+
+
+def load_path(path):
+    if isdir(path):
+        return load_dir(path)
+    elif isfile(path):
+        return load_file(path)
+    else:
+        raise KeyError(path)
+
+
+def load_dir(path):
+    # if is_exp_sequence:
+    #    return ExpSequence(path)
+    return Directory(path)
+
+
+def load_file(path):
+    return NotImplementedError()
+
+
+def load_h5(path, group):
+    return NotImplementedError()
+
+
+def remove(path, h5_group=None):
+    if h5_group is None:
+        return remove_path(path)
+    else:
+        return remove_h5(path, h5_group)
+
+
+def remove_path(path):
+    if isdir(path):
+        return os.rmdir(path)
+    elif isfile(path):
+        return os.remove(path)
+    else:
+        raise KeyError(path)
+
+
+def remove_h5(path, h5_group):
+    return NotImplementedError()
+
+
 # noinspection PyTypeChecker
 def dir_to_dict(path: str, include_files='all'):
     directory = {}
@@ -72,12 +122,7 @@ class Directory(MutableMapping):
 
     def __getitem__(self, key):
         path = join(self.path, key)
-        if os.path.isdir(path):
-            return Directory(path)
-        elif os.path.isfile(path):
-            return File(path)
-        else:
-            raise KeyError(key)
+        return load_path(path)
 
     def __setitem__(self, key: str, file_or_dir):
         if isinstance(file_or_dir, Directory):
@@ -89,40 +134,41 @@ class Directory(MutableMapping):
             copyfile(file_or_dir.path, join(self.path, key))
 
     def __delitem__(self, key):
-        folder = join(self.path, key)
-        if os.path.isdir(folder):
-            return rmtree(folder)
-        else:
-            return os.remove(folder)
+        path = join(self.path, key)
+        remove_path(path)
 
     def __iter__(self):
         for key in os.listdir(self.path):
-            folder = join(self.path, key)
-            yield folder
+            path = join(self.path, key)
+            yield path
+
+    def _ipython_key_completions_(self):
+        return os.listdir(self.path)
+
     def iter_dirs(self):
         for key in os.listdir(self.path):
-            folder = join(self.path, key)
-            if isdir(folder):
-                yield folder
+            path = join(self.path, key)
+            if isdir(path):
+                yield path
 
     def iter_files(self):
         for key in os.listdir(self.path):
-            folder = join(self.path, key)
-            if isfile(folder):
-                yield folder
+            path = join(self.path, key)
+            if isfile(path):
+                yield path
 
     def __len__(self):
         _len = 0
         for key in os.listdir(self.path):
-            folder = join(self.path, key)
-            if isdir(folder):
+            path = join(self.path, key)
+            if isdir(path):
                 _len += 1
         return _len
 
     def __repr__(self):
         return "directory: " + self.path
 
-    def structure(self, include_files='all'):
+    def tree(self, include_files='all'):
         print(dump(dir_to_dict(self.path, include_files)))
 
     def rmtree(self):

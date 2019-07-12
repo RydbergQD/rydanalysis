@@ -71,6 +71,7 @@ class OldStructure(Directory):
             print("couldn't copy old live analysis")
         return new
 
+
     def create_new(self, path):
         new = ExpSequence(path)
         for tmstp in tqdm(self.tmstps):
