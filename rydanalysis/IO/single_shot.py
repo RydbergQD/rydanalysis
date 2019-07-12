@@ -1,4 +1,4 @@
-from rydanalysis.IO.directory import Directory
+from rydanalysis.IO.os import Directory
 
 import pandas as pd
 from astropy.io import fits

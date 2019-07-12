@@ -1,4 +1,4 @@
-from rydanalysis.IO.directory import Directory
+from rydanalysis.IO.os import Directory
 from rydanalysis.IO.exp_sequence import ExpSequence
 from rydanalysis.auxiliary.warnings_and_errors import conditional_waning
 
@@ -73,12 +73,12 @@ class OldStructure(Directory):
         return new
 
     def create_new(self, path):
-        new = ExpSequence(path)
+        new = Directory(path)
         for tmstp in tqdm(self.tmstps):
             if tmstp.strftime(strftime) in new:
                 del new[tmstp.strftime(strftime)]
             self.create_new_from_tmstp(path, tmstp)
-        return new
+        return ExpSequence(path)
 
     @property
     def old_la(self):

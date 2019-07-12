@@ -28,11 +28,7 @@ def load_dir(path):
 
 
 def load_file(path):
-    return NotImplementedError()
-
-
-def load_h5(path, group):
-    return NotImplementedError()
+    return File(path)
 
 
 def remove(path, h5_group=None):
@@ -52,7 +48,7 @@ def remove_path(path):
 
 
 def remove_h5(path, h5_group):
-    return NotImplementedError()
+    raise NotImplementedError()
 
 
 # noinspection PyTypeChecker
