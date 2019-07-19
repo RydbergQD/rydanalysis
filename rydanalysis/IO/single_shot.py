@@ -3,7 +3,7 @@ from rydanalysis.IO.directory import Directory
 import pandas as pd
 from astropy.io import fits
 from os.path import basename, join
-
+import numpy as np
 
 class SingleShot(Directory):
     """
@@ -36,9 +36,8 @@ class SingleShot(Directory):
 
     @property
     def image(self):
-        with fits.open(self['exp_data']['image.fits'].path) as image:
-            image_data = image[0].data
-        return image_data
+        image_data = read_fits(self['exp_data']['image.fits'].path)
+        return image_data.astype(np.int16)
 
     @property
     def scope_trace(self):
@@ -81,10 +80,11 @@ def write_fits(images, path):
     else:
         raise IOError("input must be 2Darray or list of 2Darrays")
     hdul = fits.HDUList([fits.PrimaryHDU(images)])
-    hdul.writeto(path)
-
+    hdul.writeto(path,overwrite=True)
 
 def read_fits(path):
-    with fits.open(path) as image:
-        image_data = image[0].data
-    return image_data
+    return fits.getdata(path)
+# def read_fits(path):
+#     with fits.open(path) as image:
+#         image_data = image[0].data
+#     return image_data

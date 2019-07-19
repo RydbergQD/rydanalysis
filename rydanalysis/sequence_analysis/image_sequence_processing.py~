@@ -1,0 +1,8 @@
+def calc_mean_seq(images):
+    return np.nanmean(images,axis=0)
+
+def calc_std_seq(images):
+    return np.nanstd(images,axis=0)
+
+def remove_fringes(image, base):
+    raise  NotImplementedError("Fringe removal is not yet implemented")

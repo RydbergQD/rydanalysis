@@ -57,18 +57,18 @@ class OldStructure(Directory):
             scope_trace = self.get_scope_trace(tmstp)
             scope_trace.to_csv(join(new.path, 'scope_trace.csv'), header=True)
         except:
-            print("No scope traces present in run with timestamp")
+            pass#print("No scope traces present in run with timestamp")
         try:
             new['voltage.xml'] = self.get_voltage(tmstp)
         except:
-            print("No voltage readings present in run with timestamp")
+            pass#print("No voltage readings present in run with timestamp")
         dir_analysis = join(path, tmstp.strftime(strftime), 'analysis')
         os.makedirs(dir_analysis)
         try:
             old_la = self.get_old_la_from_tmstp(tmstp)
             old_la.to_csv(join(dir_analysis, 'old_la.csv'), header=True)
         except:
-            print("couldn't copy old live analysis")
+            pass#print("couldn't copy old live analysis")
         return new
 
     def create_new(self, path):

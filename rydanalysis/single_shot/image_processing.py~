@@ -1,0 +1,13 @@
+def calc_absorbtion_image(images, bg = None):
+    if not bg:
+        bg = images[2]
+    return (images[0]-bg)/(images[1]-bg)
+
+def absorbtion_to_OD(image):
+    return -np.log(image)
+
+def crop_image(image,xslice=slice(0,-1),yslice=slice(0,-1)):
+    return image[(xslice,yslice)]
+
+
+

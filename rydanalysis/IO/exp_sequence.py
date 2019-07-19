@@ -64,6 +64,9 @@ class ExpSequence(Directory):
             return Directory(path)
         raise KeyError(key)
 
+    def get_variable_range(self,key):
+        return list(set(self.var_grid[key].values))
+
     def iter_single_shots(self):
         for key in os.listdir(self.path):
             folder = join(self.path, key)
@@ -73,18 +76,23 @@ class ExpSequence(Directory):
     def __repr__(self):
         return "Experimental Sequence: " + self.path
 
-    def iter_matching_shots(self, var):
+    def get_single_shot(self,tmstp):
+        key = tmstp.strftime('%Y_%m_%d_%H.%M.%S')
+        folder = join(self.path, key)
+        if is_single_shot(folder):
+            return SingleShot(folder)
+        
+    def iter_matching_shots(self, **var):
         """
         iterate over shots that mach var
         """
-        selection = match_rows(self.variables, var)
+        selection = match_rows(self.variables, **var)
         for tmstp in selection.index:
             key = tmstp.strftime('%Y_%m_%d_%H.%M.%S')
             folder = join(self.path, key)
-            print(folder)
             if is_single_shot(folder):
                 yield SingleShot(folder)
-    
+
     def get_averaged_image(self, var):
         num = match_rows(self.var_grid, var).index[0]
         image = read_fits(self.averaged_images['averaged_od_{:04d}.fits'.format(num)].path)
@@ -109,7 +117,7 @@ def is_exp_sequence(path):
     return False
 
 
-def match_rows(df, var):
+def match_rows(df, **var):
     """
     return those rows of a dataframe that match the var (dict)
     """
