@@ -1,5 +1,6 @@
-from rydanalysis.IO.directory import Directory
+from rydanalysis.IO.os import Directory
 from rydanalysis.IO.exp_sequence import ExpSequence
+from rydanalysis.auxiliary.warnings_and_errors import conditional_waning
 
 import pandas as pd
 import os
@@ -47,7 +48,7 @@ class OldStructure(Directory):
     def get_voltage(self, tmstp):
         return self['Voltages'][tmstp.strftime('voltages_' + strftime + '.xml')]
 
-    def create_new_from_tmstp(self, path, tmstp):
+    def create_new_from_tmstp(self, path, tmstp, ignore_warnings=True):
         new = Directory(join(path, tmstp.strftime(strftime), 'exp_data'))
         new['exp_seq.xml'] = self.get_exp_seq(tmstp)
         variables = self.get_variable(tmstp)
@@ -56,28 +57,31 @@ class OldStructure(Directory):
         try:
             scope_trace = self.get_scope_trace(tmstp)
             scope_trace.to_csv(join(new.path, 'scope_trace.csv'), header=True)
+
         except:
             pass#print("No scope traces present in run with timestamp")
         try:
             new['voltage.xml'] = self.get_voltage(tmstp)
         except:
             pass#print("No voltage readings present in run with timestamp")
+
         dir_analysis = join(path, tmstp.strftime(strftime), 'analysis')
         os.makedirs(dir_analysis)
         try:
             old_la = self.get_old_la_from_tmstp(tmstp)
             old_la.to_csv(join(dir_analysis, 'old_la.csv'), header=True)
+
         except:
             pass#print("couldn't copy old live analysis")
-        return new
+
 
     def create_new(self, path):
-        new = ExpSequence(path)
+        new = Directory(path)
         for tmstp in tqdm(self.tmstps):
             if tmstp.strftime(strftime) in new:
                 del new[tmstp.strftime(strftime)]
             self.create_new_from_tmstp(path, tmstp)
-        return new
+        return ExpSequence(path)
 
     @property
     def old_la(self):

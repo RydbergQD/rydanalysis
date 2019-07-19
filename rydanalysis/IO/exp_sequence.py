@@ -1,4 +1,4 @@
-from rydanalysis.IO.directory import Directory, File
+from rydanalysis.IO.os import Directory, File
 from rydanalysis.IO.single_shot import SingleShot, is_single_shot, read_fits, write_fits
 
 import os
