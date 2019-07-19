@@ -82,9 +82,11 @@ def write_fits(images, path):
     hdul = fits.HDUList([fits.PrimaryHDU(images)])
     hdul.writeto(path,overwrite=True)
 
-def read_fits(path):
-    return fits.getdata(path)
 # def read_fits(path):
-#     with fits.open(path) as image:
-#         image_data = image[0].data
-#     return image_data
+#     return fits.getdata(path)
+def read_fits(path):
+    with fits.open(path) as image:
+        image_data = image[0].data.copy()
+        del image[0].data
+        del image[0]
+        return image_data
