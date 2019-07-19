@@ -57,6 +57,7 @@ class OldStructure(Directory):
         try:
             scope_trace = self.get_scope_trace(tmstp)
             scope_trace.to_csv(join(new.path, 'scope_trace.csv'), header=True)
+<<<<<<< HEAD
 
         except:
             pass#print("No scope traces present in run with timestamp")
@@ -65,15 +66,29 @@ class OldStructure(Directory):
         except:
             pass#print("No voltage readings present in run with timestamp")
 
+=======
+        except KeyError:
+            conditional_waning("No scope traces present in run with timestamp", ignore_warnings)
+        try:
+            new['voltage.xml'] = self.get_voltage(tmstp)
+        except KeyError:
+            conditional_waning("No voltage readings present in run with timestamp", ignore_warnings)
+>>>>>>> f31d7dcc071d0afea10ad5e66c32cc1ec9b5dda1
         dir_analysis = join(path, tmstp.strftime(strftime), 'analysis')
         os.makedirs(dir_analysis)
         try:
             old_la = self.get_old_la_from_tmstp(tmstp)
             old_la.to_csv(join(dir_analysis, 'old_la.csv'), header=True)
+<<<<<<< HEAD
 
         except:
             pass#print("couldn't copy old live analysis")
 
+=======
+        except KeyError:
+            conditional_waning("couldn't copy old live analysis", ignore_warnings)
+        return new
+>>>>>>> f31d7dcc071d0afea10ad5e66c32cc1ec9b5dda1
 
     def create_new(self, path):
         new = Directory(path)
