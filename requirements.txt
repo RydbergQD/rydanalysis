@@ -1,3 +1,5 @@
+xarray
+tqdm
 h5py
 numpy
 pandas

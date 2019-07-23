@@ -1,10 +1,8 @@
-from rydanalysis.IO.os import Directory, File
+from rydanalysis.IO.os import Directory
 from rydanalysis.IO.single_shot import SingleShot, is_single_shot, read_fits, write_fits
 
 import os
-from os.path import join, isfile, isdir
-import pandas as pd
-import numpy as np
+from os.path import join
 
 
 class SingleShotWithItem:
@@ -22,53 +20,14 @@ class SingleShotWithItem:
 class ExpSequence(Directory):
     def __init__(self, path):
         super(ExpSequence, self).__init__(path)
-        self.parameters, self.variables, self.var_grid = self.parse_variables()
         # create sequence analysis dir
-        self.analysis = Directory(join(path, 'analysis'))
-        self.averaged_images = Directory(join(self.analysis.path, 'averaged_images'))
-        
-    def parse_variables(self):
-        parameters = pd.DataFrame()
-        for single_shot in self.iter_single_shots():
-            parameter = single_shot.parameters
-            parameter.name = single_shot.tmstp
-            parameters = pd.concat([parameters, parameter], axis=1, sort=False)
+        self.analysis = self['analysis']
+        self.raw_data = self['raw_data']
+        self.averaged_images = self.analysis['averaged_images']
 
-        parameters = parameters.T
-        parameters.index.name = 'tmstp'
-        parameters.columns.name = None
-        # noinspection PyTypeChecker
-        variables = parameters.T[parameters.nunique() > 1].T
-        try:
-            del variables['dummy']
-        except KeyError:
-            pass
-        # noinspection PyTypeChecker
-        parameters = parameters.T[parameters.nunique() == 1].T.mean(axis=0)
-
-        # create meshgrid of variable values as df
-        list_val = [np.array(list(set(variables[col].values))) for col in variables]
-        val_mesh = np.meshgrid(*list_val)
-        var_grid = pd.DataFrame(dict(zip(variables, val_mesh)))
-        return parameters, variables, var_grid
-
-    def __getitem__(self, key):
-        path = join(self.path, key)
-        if isfile(path):
-            return File(path)
-        elif isdir(path):
-            if is_single_shot(path):
-                return SingleShot(path)
-            if is_exp_sequence(path):
-                return ExpSequence(path)
-            return Directory(path)
-        raise KeyError(key)
-
-    def iter_single_shots(self):
-        for key in os.listdir(self.path):
-            folder = join(self.path, key)
-            if is_single_shot(folder):
-                yield SingleShot(folder)
+        self.parameters = self.raw_data.parameters
+        self.variables = self.raw_data.variables
+        self.var_grid = self.raw_data.var_grid
 
     def __repr__(self):
         return "Experimental Sequence: " + self.path

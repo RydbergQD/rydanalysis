@@ -1,90 +1,105 @@
 from rydanalysis.IO.os import Directory
-from rydanalysis.IO.exp_sequence import ExpSequence
-from rydanalysis.auxiliary.warnings_and_errors import conditional_waning
+from rydanalysis.IO.io import GetterWithTimestamp, _load_path
+from rydanalysis.IO.h5 import h5_join
+from rydanalysis.IO.single_shot import SingleShot
+from rydanalysis.IO.fits import FitsFile
 
 import pandas as pd
-import os
 from os.path import basename, join
 from tqdm import tqdm_notebook as tqdm
-
-
-strftime = '%Y_%m_%d_%H.%M.%S'
+import warnings
 
 
 class OldStructure(Directory):
+    strftime = '%Y_%m_%d_%H.%M.%S'
+    csv_kwargs = dict(index_col=0, squeeze=True, sep='\t', decimal=',', header=None)
 
-    def __init__(self, path):
+    def __init__(self, path, handle_key_errors='ignore'):
         super(OldStructure, self).__init__(path)
+        self.handle_key_errors = handle_key_errors
+        self.tmstps = self.get_tmstps()
 
-    @property
-    def tmstps(self):
+    def __getitem__(self, key):
+        path = join(self.path, key)
+        try:
+            return _load_path(path)
+        except KeyError as err:
+            if self.handle_key_errors is 'ignore':
+                pass
+            elif self.handle_key_errors is 'warning':
+                warnings.warn(str(err) + ' not found')
+            else:
+                raise err
+
+    def __repr__(self):
+        return "Old structure: " + self.path
+
+    def __str__(self):
+        return "Old structure: " + self.__name__
+
+    def get_tmstps(self):
         tmstps = []
         for path in self['Variables'].iter_files():
-            tmstps.append(pd.to_datetime(basename(path), format=strftime + '.txt'))
+            tmstps.append(pd.to_datetime(basename(path), format=self.strftime + '.txt'))
         return tmstps
 
-    def get_variable(self, tmstp):
-        path = self['Variables'][tmstp.strftime(strftime + '.txt')].path
-        variables = pd.read_csv(path, index_col=0, squeeze=True, sep='\t',
-                                decimal=',', header=None)
-        variables.name = 'variables'
-        variables.index.name = 'variable'
-        return variables
+    @GetterWithTimestamp
+    def images(self, tmstp):
+        path = self['FITS Files'][tmstp.strftime(self.strftime + '_full.fts')].path
+        fits_file = FitsFile(path)
+        return fits_file[0]
 
-    def get_exp_seq(self, tmstp):
-        return self['Experimental Sequences'][tmstp.strftime(strftime + '.xml')]
+    @GetterWithTimestamp
+    def parameters(self, tmstp):
+        _parameters_class = self['Variables'].lazy_get(tmstp.strftime(self.strftime + '.txt'))
+        parameters = _parameters_class.read(**self.csv_kwargs)
+        parameters.name = tmstp
+        parameters.index.name = None
+        parameters.drop('dummy', inplace=True)
+        return parameters
 
-    def get_fits(self, tmstp):
-        return self['FITS Files'][tmstp.strftime(strftime + '_full.fts')]
+    @GetterWithTimestamp
+    def exp_seq(self, tmstp):
+        return self['Experimental Sequences'][tmstp.strftime(self.strftime + '.xml')]
 
-    def get_scope_trace(self, tmstp):
-        path = self['Scope Traces'][tmstp.strftime(strftime + '_C1.csv')].path
-        scope_trace = pd.read_csv(path, index_col=0, sep='\t', header=None,
-                                  decimal=',', squeeze=True)
-        scope_trace.name = 'MCP'
+    @GetterWithTimestamp
+    def scope_trace(self, tmstp):
+        path = join(self['Scope Traces'].path, tmstp.strftime(self.strftime + '_C1.csv'))
+        scope_trace = pd.read_csv(path, **self.csv_kwargs)
+        scope_trace.name = tmstp
         scope_trace.index.name = 'time'
         return scope_trace
 
-    def get_voltage(self, tmstp):
-        return self['Voltages'][tmstp.strftime('voltages_' + strftime + '.xml')]
+    @GetterWithTimestamp
+    def voltage(self, tmstp):
+        return self['Voltages'][tmstp.strftime('voltages_' + self.strftime + '.xml')]
 
-    def create_new_from_tmstp(self, path, tmstp, ignore_warnings=True):
-        new = Directory(join(path, tmstp.strftime(strftime), 'exp_data'))
-        new['exp_seq.xml'] = self.get_exp_seq(tmstp)
-        variables = self.get_variable(tmstp)
-        variables.to_csv(join(new.path, 'parameters.csv'), header=True)
-        new['image.fits'] = self.get_fits(tmstp)
-        try:
-            scope_trace = self.get_scope_trace(tmstp)
-            scope_trace.to_csv(join(new.path, 'scope_trace.csv'), header=True)
-        except KeyError:
-            conditional_waning("No scope traces present in run with timestamp", ignore_warnings)
-        try:
-            new['voltage.xml'] = self.get_voltage(tmstp)
-        except KeyError:
-            conditional_waning("No voltage readings present in run with timestamp", ignore_warnings)
-        dir_analysis = join(path, tmstp.strftime(strftime), 'analysis')
-        os.makedirs(dir_analysis)
-        try:
-            old_la = self.get_old_la_from_tmstp(tmstp)
-            old_la.to_csv(join(dir_analysis, 'old_la.csv'), header=True)
-        except KeyError:
-            conditional_waning("couldn't copy old live analysis", ignore_warnings)
-        return new
+    def single_shot_from_tmstp(self, path, tmstp):
+        single_shot = SingleShot.initiate_new(path, tmstp)
+        single_shot['parameters'] = self.parameters[tmstp]
+        for i, image in enumerate(self.images[tmstp]):
+            single_shot[h5_join('images', 'image_' + str(i).zfill(2))] = image
+        single_shot['scope_trace'] = self.scope_trace[tmstp]
+        return single_shot
 
     def create_new(self, path):
-        new = Directory(path)
+        exp_seq = Directory(path)
+        exp_seq['Experimental Sequences'] = self['Experimental Sequences']
+        exp_seq['Voltages'] = self['Voltages']
+        self.old_la.to_csv(join(exp_seq.path, 'old_la.csv'))
+        raw_data = Directory(join(path, 'raw_data'))
         for tmstp in tqdm(self.tmstps):
-            if tmstp.strftime(strftime) in new:
-                del new[tmstp.strftime(strftime)]
-            self.create_new_from_tmstp(path, tmstp)
-        return ExpSequence(path)
+            file_path = tmstp.strftime(self.strftime) + '.h5'
+            if file_path in raw_data:
+                del exp_seq[file_path]
+            self.single_shot_from_tmstp(raw_data.path, tmstp)
+        return Directory(path)
 
     @property
     def old_la(self):
-        file = self['FITS Files']['00_all_fit_results.csv']
-        old_la = pd.read_csv(file.path, index_col=0)
+        old_la = self['FITS Files']['00_all_fit_results.csv']
         old_la.rename(columns=lambda x: x.replace(' ', ''), inplace=True)
+        old_la.time = old_la.time.apply(lambda t: pd.to_datetime(t, unit='s', origin=self.tmstps[0].date()))
         old_la.set_index('time', inplace=True)
         del old_la['Index']
         return old_la

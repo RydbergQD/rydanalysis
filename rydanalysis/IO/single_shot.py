@@ -1,11 +1,14 @@
+from rydanalysis.IO.h5 import H5File
 from rydanalysis.IO.os import Directory
 
 import pandas as pd
+import xarray as xr
 from astropy.io import fits
-from os.path import basename, join
+from os.path import basename, dirname, join
+import h5py
 
 
-class SingleShot(Directory):
+class SingleShot(H5File):
     """
     Analysis of a single experimental run.
 
@@ -25,49 +28,52 @@ class SingleShot(Directory):
           ...
 
     """
+    time_format = '%Y_%m_%d_%H.%M.%S'
+
     def __init__(self, path):
-        if not is_single_shot(path):
-            raise KeyError("The directory name of a single shot should be in format '%Y_%m_%d_%H.%M.%S'")
         super(SingleShot, self).__init__(path)
+        with h5py.File(path, 'r') as hf:
+            if not hf.attrs['ryd_type'] == 'single_shot':
+                raise TypeError("The H5 Dataset is not a single Shot")
+            self.tmstp = pd.to_datetime(hf.attrs['tmstp'], format=self.time_format)
+
+    @classmethod
+    def initiate_new(cls, path, tmstp: pd.Timestamp):
+        tmstp_str = tmstp.strftime(cls.time_format)
+        file_path = join(path, tmstp_str + '.h5')
+        with h5py.File(file_path, 'w') as hf:
+            hf.attrs['ryd_type'] = 'single_shot'
+            hf.attrs['tmstp'] = tmstp_str
+        instance = cls(file_path)
+        return instance
 
     @property
     def old_la(self):
-        return pd.read_csv(self['analysis']['old_la.csv'].path, index_col=0, squeeze=True)
+        return Directory(dirname(dirname(self.path)))['old_la.csv']
 
     @property
-    def image(self):
-        with fits.open(self['exp_data']['image.fits'].path) as image:
-            image_data = image[0].data
-        return image_data
+    def images(self):
+        return xr.Dataset({key: (['x', 'y'], image) for key, image in self['images'].items()})
 
     @property
     def scope_trace(self):
-        return pd.read_csv(self['exp_data']['scope_trace.csv'].path, squeeze=True, index_col=0)
+        return self['scope_trace']
 
     @property
     def parameters(self):
-        return pd.read_csv(self['exp_data']['parameters.csv'].path, index_col=0, squeeze=True)
-
-    @property
-    def tmstp(self):
-        return pd.to_datetime(self.__name__, format='%Y_%m_%d_%H.%M.%S')
-
-    @property
-    def optical_density(self):
-        return read_fits(self['analysis']['od.fits'].path) 
-
-    @optical_density.setter
-    def optical_density(self, image):
-        write_fits(image, join(self['analysis'].path, 'od.fits'))
+        return self['parameters']
 
     def __repr__(self):
         return "Single shot: " + self.path
+
+    def __str__(self):
+        return "Single shot: " + self.__name__
 
 
 def is_single_shot(path):
     name = basename(path)
     try:
-        pd.to_datetime(name, format='%Y_%m_%d_%H.%M.%S')
+        pd.to_datetime(name, format='%Y_%m_%d_%H.%M.%S.h5')
         return True
     except ValueError:
         return False
