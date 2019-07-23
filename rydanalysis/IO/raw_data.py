@@ -28,7 +28,7 @@ class RawData(Directory):
         return var_grid
 
     def get_scope_traces(self):
-        return pd.concat([single_shot.scope_trace for single_shot in self.values()], axis=1).T
+        return pd.concat([single_shot.scope_trace for single_shot in self.values()], axis=1)
 
     def get_images(self):
         index = pd.MultiIndex.from_frame(self.variables.reset_index())
