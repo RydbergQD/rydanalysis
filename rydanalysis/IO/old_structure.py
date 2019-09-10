@@ -79,7 +79,8 @@ class OldStructure(Directory):
         single_shot['parameters'] = self.parameters[tmstp]
         for i, image in enumerate(self.images[tmstp]):
             single_shot[h5_join('images', 'image_' + str(i).zfill(2))] = image
-        single_shot['scope_trace'] = self.scope_trace[tmstp]
+        try: single_shot['scope_trace'] = self.scope_trace[tmstp]
+        except: pass
         return single_shot
 
     def create_new(self, path):

@@ -21,9 +21,9 @@ class ExpSequence(Directory):
     def __init__(self, path):
         super(ExpSequence, self).__init__(path)
         # create sequence analysis dir
-        self.analysis = self['analysis']
+       # self.analysis = self['analysis']
         self.raw_data = self['raw_data']
-        self.averaged_images = self.analysis['averaged_images']
+       # self.averaged_images = self.analysis['averaged_images']
 
         self.parameters = self.raw_data.parameters
         self.variables = self.raw_data.variables
