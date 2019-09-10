@@ -6,23 +6,23 @@ path.insert(0, '/home/david/Institut/data-analysis/rydanalysis/')
 from rydanalysis import *
 from rydanalysis.single_shot.image_processing import *
 
-@task
+
 def create_analysis_dir(seq_path,analysis_root):
     analysis_dir = Directory(os.path.join(analysis_root,seq_path))
     return analysis_dir.path
 
-@task
+
 def create_new_data_dir(seq_path,data_root):
     data_dir = Directory(os.path.join(data_root,seq_path))
     return data_dir.path
 
-@task
+
 def old_to_new_datastructure(in_dir , out_dir):
     old_scan = OldStructure(in_dir)
     old_scan.create_new(out_dir)
     return out_dir
 
-@task
+
 def calc_batch_transmission(seq_dir, out_dir,
                             remove_fringes=True,
                             replace_invalid=True,
