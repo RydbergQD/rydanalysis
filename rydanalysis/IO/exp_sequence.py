@@ -27,7 +27,7 @@ class ExpSequence(Directory):
 
         self.parameters = self.raw_data.parameters
         self.variables = self.raw_data.variables
-        self.var_grid = self.raw_data.var_grid
+        #self.var_grid = self.raw_data.var_grid
 
     def __repr__(self):
         return "Experimental Sequence: " + self.path

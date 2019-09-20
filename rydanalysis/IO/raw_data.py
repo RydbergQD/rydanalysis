@@ -9,7 +9,10 @@ class RawData(Directory):
     def __init__(self, path):
         super(RawData, self).__init__(path)
         self.variables, self.parameters = self.get_parameters()
-        self.var_grid = self.get_var_grid()
+        ###########
+        #needs fixing, not used now
+        #self.var_grid = self.get_var_grid()
+        ############
 
     def __repr__(self):
         return "Raw data: " + self.path
