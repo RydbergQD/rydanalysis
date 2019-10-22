@@ -10,8 +10,8 @@ class RawData(Directory):
         super(RawData, self).__init__(path)
         self.variables, self.parameters = self.get_parameters()
         ###########
-        #needs fixing, not used now
-        #self.var_grid = self.get_var_grid()
+        # needs fixing, not used now
+        # self.var_grid = self.get_var_grid()
         ############
 
     def __repr__(self):
@@ -35,4 +35,8 @@ class RawData(Directory):
 
     def get_images(self):
         index = pd.MultiIndex.from_frame(self.variables.reset_index())
-        return xr.concat([single_shot.images for single_shot in self.values()], dim=index)
+        ds = xr.concat([single_shot.images for single_shot in self.values()], dim=index)
+        ds = ds.reset_index('concat_dim')
+        ds = ds.rename({'concat_dim': 'shot'})
+        ds = ds.rename({'index': 'timestamp'})
+        return ds

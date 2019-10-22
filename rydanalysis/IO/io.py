@@ -53,6 +53,8 @@ def _load_file(path, lazy=False):
         if ryd_type == 'single_shot':
             return _load_helper("SingleShot", path=path, lazy=lazy)
         return _load_helper("H5File", lazy=lazy, path=path)
+    if file_extension == '.nc':
+        return _load_helper("NetCDFFile", lazy=lazy,path=path)
     if file_extension in ['.fits', '.fts', 'fit']:
         return _load_helper("FitsFile", lazy=lazy, path=path)
     if file_extension in ['.csv', '.txt']:

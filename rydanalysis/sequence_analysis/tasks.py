@@ -7,12 +7,13 @@ from rydanalysis import *
 from rydanalysis.single_shot.image_processing import *
 
 
+@task
 def create_analysis_dir(seq_path,analysis_root):
     analysis_dir = Directory(os.path.join(analysis_root,seq_path))
     return analysis_dir.path
 
-
-def create_new_data_dir(seq_path,data_root):
+@task
+def create_new_data_dir(data_root,seq_path):
     data_dir = Directory(os.path.join(data_root,seq_path))
     return data_dir.path
 

@@ -14,7 +14,21 @@ def dict_to_params(params_dict):
         params.add(key, value)
     return params
 
+def center_of_mass(input, labels=None, index=None):
+    normalizer = np.nansum(input, labels, index)
+    grids = np.ogrid[[slice(0, i) for i in input.shape]]
+
+    results = [np.nansum(input * grids[dir].astype(float), labels, index) / normalizer
+               for dir in range(input.ndim)]
+
+    if np.isscalar(results[0]):
+        return tuple(results)
+
+    return [tuple(v) for v in np.array(results).T]
+
 def cov_guess(image):
+    nonfinite = np.where(~np.isfinite(image))
+    image[nonfinite] = 0.0
     x0,y0 = ndimage.measurements.center_of_mass(image)
     if np.isnan(x0) or np.isnan(y0):
         x0 = image.shape[0]/2
@@ -74,7 +88,7 @@ class Fit2d:
         self.fit_object = None
 
     def fit_data(self, method='LeastSq'):
-        fit_object = minimize(self.residuals, self.params, method=method)
+        fit_object = minimize(self.residuals, self.params, method=method,nan_policy='omit')
         self.fit_object = fit_object
         self.params = fit_object.params
         return fit_object

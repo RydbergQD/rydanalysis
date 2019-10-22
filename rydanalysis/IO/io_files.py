@@ -1,6 +1,6 @@
 from os.path import basename
 import pandas as pd
-
+import xarray as xr
 
 class File:
     def __init__(self, path):
@@ -32,6 +32,19 @@ class CSVFile(File):
         csv_kwargs = self.csv_kwargs.copy()
         csv_kwargs.update(**kwargs)
         return pd.read_csv(self.path, *args, **kwargs)
+
+    def __repr__(self):
+        return "CSVFile: " + self.path
+
+    def __str__(self):
+        return "CSVFile: " + self.__name__
+    
+class NetCDFFile(File):
+    def __init__(self, path):
+         super().__init__(path)
+         
+    def read(self, *args, **kwargs):
+        return xr.open_dataset(self.path)
 
     def __repr__(self):
         return "CSVFile: " + self.path

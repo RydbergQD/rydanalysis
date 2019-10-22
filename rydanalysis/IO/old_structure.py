@@ -40,7 +40,11 @@ class OldStructure(Directory):
     def get_tmstps(self):
         tmstps = []
         for path in self['Variables'].iter_files():
-            tmstps.append(pd.to_datetime(basename(path), format=self.strftime + '.txt'))
+            try:
+                tmstps.append(pd.to_datetime(basename(path), format=self.strftime + '.txt'))
+            except:
+                print("couldn't read {0}. Skipping this file...".format(basename(path)))
+                pass
         return tmstps
 
     @GetterWithTimestamp
