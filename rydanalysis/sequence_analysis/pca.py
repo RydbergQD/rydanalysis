@@ -1,19 +1,82 @@
 import numpy as np
+from sklearn import decomposition
 
 
-def pca_2d(im):
-    av = im.mean(axis=0)
-    phi2 = im - av
-    phi = np.reshape(phi2, (phi2.shape[0], -1))
-    L = np.array([[phi_m.T @ phi_n for phi_m in phi] for phi_n in phi])
+def pca_extract_noise(im, n_components=None):
+    im_shape = im[0].shape
+    im_flat = np.reshape(im, (im.shape[0], -1))
+    pca = decomposition.PCA(n_components=n_components)
+    comp = pca.fit_transform(im_flat)
+    projected = pca.inverse_transform(comp)
+    res = im_flat-projected
+    res = res.reshape((-1, *im_shape))
+    return res
 
-    val, v = np.linalg.eigh(L)
 
-    u = v.T @ phi
+def split_signal_noise(im, n_components=None, return_residual=True):
+    """
 
-    norm = np.sqrt(np.sum(u ** 2, axis=(-1)))
-    u = np.array([u_ / norm_ for u_, norm_ in zip(u, norm)])
+    Args:
+        return_residual (bool): whether to return the residual
 
-    u2 = u.reshape(phi2.shape)
+        im: input array of images with shape (index-dim, x-dim,  y-dim)
+        n_components: Number of components to keep, if n_components is not set all components are kept
 
-    return v[::-1], u2[::-1]
+    Returns:
+        projected: projection of the input array on the subspace spanned by the first n_components, same shape as input
+        res: residual of the projection, same shape as input
+
+    """
+    im_shape = im[0].shape
+    im_flat = np.reshape(im, (im.shape[0], -1))
+    pca = decomposition.PCA(n_components=n_components)
+    comp = pca.fit_transform(im_flat)
+    projected = pca.inverse_transform(comp)
+    res = im_flat-projected
+    res = res.reshape((-1, *im_shape))
+    projected = projected.reshape((-1, *im_shape))
+
+    if return_residual:
+        return projected, res
+    else:
+        return projected
+
+
+def fit_with_pc(im, n_components=None):
+    """
+
+    Args:
+        im: input array of images with shape (index-dim, x-dim,  y-dim)
+        n_components: Number of components to keep, if n_components is not set all components are kept
+
+    Returns:
+        projected: projection of the input array on the subspace spanned by the first n_components, same shape as input
+
+    """
+    im_shape = im[0].shape
+    im_flat = np.reshape(im, (im.shape[0], -1))
+    pca = decomposition.PCA(n_components=n_components)
+    comp = pca.fit_transform(im_flat)
+    projected = pca.inverse_transform(comp)
+    projected = projected.reshape((-1, *im_shape))
+    return projected
+
+
+def decompose_images(im, n_components=None):
+    """
+
+    Args:
+        im: input array of images with shape (index-dim, x-dim,  y-dim)
+        n_components: Number of components to keep, if n_components is not set all components are kept
+
+    Returns:
+        comp: array of components with the shape (index-dim, x-dim,  y-dim)
+
+    """
+    im_shape = im[0].shape
+    im_flat = np.reshape(im, (im.shape[0], -1))
+    pca = decomposition.PCA(n_components=n_components)
+    pca = pca.fit(im_flat)
+    comp = pca.components_.reshape((-1, *im_shape))
+    return comp
+

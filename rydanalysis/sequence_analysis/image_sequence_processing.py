@@ -1,6 +1,18 @@
 import numpy as np
 import pandas as pd
 import xarray as xr
+import copy
+import functools
+
+
+def apply_on_da(func):
+    @functools.wraps(func)
+    def wrapper(da, *args, **kwargs):
+        a = func(da.values, *args, **kwargs)
+        da = xr.DataArray(data=a, coords=da.coords, dims=da.dims)
+        return da
+
+    return wrapper
 
 
 def calc_mean_seq(images):
@@ -37,6 +49,32 @@ def fit_to_dataset(fit):
     coords = list(next(iter(dict_p.values())).keys())
     ds = xr.Dataset(data_vars=data, coords={'quantity': coords})
     return ds
+
+
+def da_apply_fit(da, params, model_class, mask=None, return_type='params'):
+    """
+
+    Args:
+        mask: if provided, fit only the masked area
+        da: 3d xr.DataArray of images with shape (n_shots, n_pixel_x, n_pixel_y)
+        params: fit parameters
+        model_class: fitting model to use
+
+    Returns:
+        xr.Dataset of the best fit parameters
+
+    """
+    p_list = list()
+    for image in da:
+        arr = copy.deepcopy(image.values)
+        if mask is not None:
+            np.putmask(arr, ~mask, np.nan)
+        fit = model_class(image, params=params)
+        params = fit.fit_data().params
+        p_list.append(xr.Dataset(params.valuesdict(), coords=image.coords))
+    return xr.concat(p_list, dim=da.dims[0])
+
+
 
 
 def iteritems_nested(d):

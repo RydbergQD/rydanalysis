@@ -2,7 +2,7 @@ import numpy as np
 from scipy import ndimage
 from scipy import linalg
 from rydanalysis import *
-
+from sklearn import decomposition
 
 def absorbtion_to_OD(image):
     return -np.log(1 - image)
@@ -85,7 +85,7 @@ def prepare_ref_basis(ref_images, mask=None):
     return B_inv, R
 
 
-def calc_ref_image(image, B_inv=None, R=None, mask=None):
+def calc_ref_image(image, B_inv=None, R=None, mask=None, coefficients=False):
     if mask is None:
         mask = ~np.zeros_like(image, dtype=bool)
     k = np.ravel(mask)
@@ -95,4 +95,43 @@ def calc_ref_image(image, B_inv=None, R=None, mask=None):
     c = B_inv @ (Rm @ Am)
     R_opt = (c @ R)
     R_opt = R_opt.reshape(image.shape)
-    return R_opt
+    if coefficients:
+        return R_opt, c
+    else:
+        return R_opt
+
+
+def ref_images_truncated_svd(a, b, mask=None, n_components=None):
+    """
+    Fit b[,:mask] with the first #n_basis principal components of a. Uses Truncated SVA
+    for the decomposition and linear least squares for the fit.
+    Args:
+        a: 3d array with shape (n_a_samples, n_x, n_y)
+        b: 3d array with shape (n_b_samples, n_x, n_y)
+        mask: 2d array with shape (n_x,n_y)
+        n_components (int): number of components to use
+
+    Returns:
+        fit to b (not masked), 3d array with the same shape as b
+
+    """
+
+    shape = a[0].shape
+    if mask is None:
+        mask = np.full(shape, True)
+
+    # flatten 2d samples
+    a_flat = np.reshape(a, (a.shape[0], -1))
+
+    # singular value decomposition
+    decomp = decomposition.TruncatedSVD(n_components=n_components)
+    decomp = decomp.fit(a_flat)
+
+    # linear least squares fit
+    coeff = np.linalg.lstsq(decomp.components_[:, np.ravel(mask)].T, b[:, mask].T)[0]
+    fit = coeff.T @ decomp.components_
+
+    # reshaping to list of 2d samples
+    fit = fit.reshape((-1, *shape))
+
+    return fit
