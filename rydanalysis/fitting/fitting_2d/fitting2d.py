@@ -79,6 +79,11 @@ class Fit2d:
     def _function(x, y):
         pass
 
+    @classmethod
+    def get_default_params(cls):
+        model = Model(cls._function)
+        return model.make_params()
+
     def __init__(self, data, params=None):
         self.data = data
 
