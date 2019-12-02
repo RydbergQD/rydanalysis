@@ -91,7 +91,10 @@ class OldStructure(Directory):
         exp_seq = Directory(path)
         exp_seq['Experimental Sequences'] = self['Experimental Sequences']
         exp_seq['Voltages'] = self['Voltages']
-        self.old_la.to_csv(join(exp_seq.path, 'old_la.csv'))
+        try:
+            self.old_la.to_csv(join(exp_seq.path, 'old_la.csv'))
+        except KeyError:
+            pass
         raw_data = Directory(join(path, 'raw_data'))
         for tmstp in tqdm(self.tmstps):
             file_path = tmstp.strftime(self.strftime) + '.h5'
