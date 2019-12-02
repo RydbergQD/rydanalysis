@@ -6,5 +6,6 @@ pandas
 pyyaml
 astropy
 prefect
-sklearn
+scikit-learn
 lmfit
+pytables
