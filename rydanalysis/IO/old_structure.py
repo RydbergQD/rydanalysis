@@ -81,10 +81,15 @@ class OldStructure(Directory):
     def single_shot_from_tmstp(self, path, tmstp):
         single_shot = SingleShot.initiate_new(path, tmstp)
         single_shot['parameters'] = self.parameters[tmstp]
-        for i, image in enumerate(self.images[tmstp]):
-            single_shot[h5_join('images', 'image_' + str(i).zfill(2))] = image
-        try: single_shot['scope_trace'] = self.scope_trace[tmstp]
-        except: pass
+        try:
+            for i, image in enumerate(self.images[tmstp]):
+                single_shot[h5_join('images', 'image_' + str(i).zfill(2))] = image
+        except KeyError:
+            pass
+        try:
+            single_shot['scope_trace'] = self.scope_trace[tmstp]
+        except KeyError:
+            pass
         return single_shot
 
     def create_new(self, path):
