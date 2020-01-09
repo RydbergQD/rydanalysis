@@ -88,7 +88,7 @@ class OldStructure(Directory):
             pass
         try:
             single_shot['scope_trace'] = self.scope_trace[tmstp]
-        except KeyError:
+        except:
             pass
         return single_shot
 
