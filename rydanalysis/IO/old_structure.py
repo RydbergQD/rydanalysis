@@ -1,23 +1,34 @@
 from rydanalysis.IO.os import Directory
 from rydanalysis.IO.io import GetterWithTimestamp, _load_path
-from rydanalysis.IO.h5 import h5_join
-from rydanalysis.IO.single_shot import SingleShot
+from rydanalysis.IO.exp_sequence import ExpSequence
 from rydanalysis.IO.fits import FitsFile
 
 import pandas as pd
-from os.path import basename, join
+from os.path import basename, join, isdir
 from tqdm import tqdm_notebook as tqdm
 import warnings
+import xarray as xr
+import numpy as np
+import click
+import shutil
 
 
 class OldStructure(Directory):
     strftime = '%Y_%m_%d_%H.%M.%S'
     csv_kwargs = dict(index_col=0, squeeze=True, sep='\t', decimal=',', header=None)
 
-    def __init__(self, path, handle_key_errors='ignore'):
+    def __init__(self, path, handle_key_errors='ignore', sensor_widths=(428, 2191.36)):
         super(OldStructure, self).__init__(path)
         self.handle_key_errors = handle_key_errors
         self.tmstps = self.get_tmstps()
+        self.sensor_widths = sensor_widths
+        self.variables, _ = self._find_variables()
+
+    def _find_variables(self):
+        _parameters = pd.concat([self.parameters[tmstp] for tmstp in self.tmstps], axis=1)
+        variables = _parameters[_parameters.T.nunique() > 1].T
+        parameters = _parameters[_parameters.T.nunique() == 1].mean(axis=1)
+        return variables, parameters
 
     def __getitem__(self, key):
         path = join(self.path, key)
@@ -47,11 +58,30 @@ class OldStructure(Directory):
                 pass
         return tmstps
 
+    def get_image_coords(self, image, index):
+        n_pixel = image.shape[index]
+        sensor_width = self.sensor_widths[index]
+        pixel_length = sensor_width / n_pixel
+        sensor_width -= pixel_length
+
+        return np.linspace(-sensor_width / 2, sensor_width / 2, n_pixel)
+
     @GetterWithTimestamp
     def images(self, tmstp):
         path = self['FITS Files'][tmstp.strftime(self.strftime + '_full.fts')].path
         fits_file = FitsFile(path)
-        return fits_file[0]
+        images = fits_file[0]
+
+        images = xr.Dataset(
+            {'image_' + str(i).zfill(2): (['x', 'y'], image) for i, image in enumerate(images)},
+            coords={
+                'x': self.get_image_coords(images[1], 0),
+                'y': self.get_image_coords(images[1], 1),
+                'tmstp': tmstp
+            }
+        )
+        images = images.assign_coords(self.variables.loc[tmstp])
+        return images
 
     @GetterWithTimestamp
     def parameters(self, tmstp):
@@ -79,20 +109,30 @@ class OldStructure(Directory):
         return self['Voltages'][tmstp.strftime('voltages_' + self.strftime + '.xml')]
 
     def single_shot_from_tmstp(self, path, tmstp):
-        single_shot = SingleShot.initiate_new(path, tmstp)
-        single_shot['parameters'] = self.parameters[tmstp]
+        tmstp_str = tmstp.strftime(ExpSequence.TIME_FORMAT)
+        file_path = join(path, tmstp_str + '.h5')
+        single_shot = xr.Dataset()
+        single_shot.attrs.update(self.parameters[tmstp])
         try:
-            for i, image in enumerate(self.images[tmstp]):
-                single_shot[h5_join('images', 'image_' + str(i).zfill(2))] = image
+            single_shot.update(self.images[tmstp])
         except KeyError:
             pass
         try:
             single_shot['scope_trace'] = self.scope_trace[tmstp]
         except KeyError:
             pass
-        return single_shot
+        single_shot.x.attrs.update(units='µm')
+        single_shot.y.attrs.update(units='µm')
+        single_shot.time.attrs.update(units='ms')
+        single_shot.to_netcdf(file_path)
 
     def create_new(self, path):
+        if isdir(path):
+            if click.confirm('Sequence already exists. Do you want to delete the old sequence and create a new?',
+                             default=True):
+                shutil.rmtree(path)
+            else:
+                raise FileExistsError('Could not create new Sequence.')
         exp_seq = Directory(path)
         exp_seq['Experimental Sequences'] = self['Experimental Sequences']
         exp_seq['Voltages'] = self['Voltages']

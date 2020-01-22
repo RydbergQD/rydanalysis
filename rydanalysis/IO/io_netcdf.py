@@ -4,6 +4,7 @@ import xarray as xr
 import pandas as pd
 import numpy as np
 
+
 class NetCDFDir(Directory):
     def __init__(self, path):
         super(NetCDFDir,self).__init__(path)
@@ -13,7 +14,7 @@ class NetCDFDir(Directory):
     
     @property
     def data(self):
-        ds = xr.concat(self.values(),dim='timestamp')
+        ds = xr.concat(self.values(), dim='timestamp')
         attrs = self.get_attrs(ds)
         ds = ds.drop(attrs)
         return ds

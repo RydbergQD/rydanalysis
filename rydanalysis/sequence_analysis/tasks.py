@@ -8,17 +8,17 @@ from rydanalysis.single_shot.image_processing import *
 
 
 @task
-def create_analysis_dir(seq_path,analysis_root):
+def create_analysis_dir(seq_path, analysis_root):
     analysis_dir = Directory(os.path.join(analysis_root,seq_path))
     return analysis_dir.path
 
 @task
-def create_new_data_dir(data_root,seq_path):
-    data_dir = Directory(os.path.join(data_root,seq_path))
+def create_new_data_dir(data_root, seq_path):
+    data_dir = Directory(os.path.join(data_root, seq_path))
     return data_dir.path
 
 
-def old_to_new_datastructure(in_dir , out_dir):
+def old_to_new_datastructure(in_dir, out_dir):
     old_scan = OldStructure(in_dir)
     old_scan.create_new(out_dir)
     return out_dir

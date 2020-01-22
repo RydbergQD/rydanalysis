@@ -1,5 +1,6 @@
 import os
 from os.path import join, basename, isdir, isfile
+from pathlib import Path
 from collections.abc import MutableMapping
 from yaml import dump
 from shutil import copytree, copyfile, rmtree
@@ -13,7 +14,7 @@ class Directory(MutableMapping):
     def __init__(self, path):
         if not isdir(path):
             os.makedirs(path)
-        self.path = path
+        self.path = Path(path)
         self.__name__ = basename(path)
 
     def __getitem__(self, key):
@@ -66,7 +67,7 @@ class Directory(MutableMapping):
         return _len
 
     def __repr__(self):
-        return "directory: " + self.path
+        return "directory: " + str(self.path)
 
     def __str__(self):
         return "directory: " + self.__name__

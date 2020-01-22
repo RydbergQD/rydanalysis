@@ -4,6 +4,7 @@ import h5py
 from yaml import dump
 import os
 import pandas as pd
+import xarray as xr
 
 from rydanalysis.IO.io import h5_join, load, tree
 
@@ -23,8 +24,10 @@ class H5File(MutableMapping):
     def __setitem__(self, key: str, data):
         if data is None:
             pass
+        elif isinstance(data, xr.DataArray) or isinstance(data, xr.Dataset):
+            data.to_netcdf(path=self.path)
         elif isinstance(data, pd.DataFrame) or isinstance(data, pd.Series):
-            data.to_hdf(self.path, key)
+            data.to_hdf(self.path, key, format='fixed')
         else:
             with h5py.File(self.path, 'r+') as hf:
                 hf[key] = data
@@ -80,7 +83,9 @@ class H5Group(MutableMapping):
     def __setitem__(self, key: str, data):
         h5_key = h5_join(self.h5_key, key)
         if isinstance(data, pd.DataFrame) or isinstance(data, pd.Series):
-            data.to_hdf(self.path, h5_key)
+            data.to_hdf(self.path, h5_key, format='fixed', mode='a')
+        elif isinstance(data, xr.DataArray) or isinstance(data, xr.Dataset):
+            data.to_netcdf(path=self.path, group=h5_key, mode='a')
         with h5py.File(self.path, 'r+') as hf:
             hf[h5_key] = data
 

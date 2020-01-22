@@ -1,3 +1,4 @@
+click
 xarray
 tqdm
 h5py

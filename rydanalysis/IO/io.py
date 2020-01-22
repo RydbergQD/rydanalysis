@@ -41,8 +41,8 @@ def _load_path(path, lazy=False):
 def _load_dir(path, lazy=False):
     if {'analysis', 'raw_data'} <= set(os.listdir(path)):
         return _load_helper("ExpSequence", path=path, lazy=lazy)
-    if basename(path) == 'raw_data':
-        return _load_helper('RawData', path=path, lazy=lazy)
+    if {'Experimental Sequences', 'FITS Files', 'Scope Traces', 'Variables'} <= set(os.listdir(path)):
+        return _load_helper("OldSequence", path=path, lazy=lazy)
     return _load_helper("Directory", path=path, lazy=lazy)
 
 
