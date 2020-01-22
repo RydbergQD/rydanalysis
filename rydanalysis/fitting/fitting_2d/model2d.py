@@ -258,7 +258,7 @@ class Model2d(Model):
             data = xr.DataArray(data, dims=self.independent_vars)
         if isinstance(weights, xr.DataArray):
             weights = weights.transpose(*self.independent_vars)
-        elif weights:
+        elif weights is not None:
             weights = xr.DataArray(weights, dims=self.independent_vars)
 
         for var in self.independent_vars:
