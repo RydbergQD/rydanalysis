@@ -25,5 +25,25 @@ params = model.make_params(cen_x=20)
 fit_result = model.fit(image, params, x=x, y=y, weights=weights)
 
 # Plotting
+#fit_result.plot()
+#plt.show()
+
+# Alternative using xarray
+import xarray as xr
+
+image = xr.Dataset(
+    {
+        'signal': (['x', 'y'], image),
+        'noise': (['x', 'y'], weights)
+    },
+    coords={
+        'x': x,
+        'y':y
+    }
+)
+
+fit_result = model.fit(image.signal, weights=image.noise)
+
+# Plotting
 fit_result.plot()
 plt.show()
