@@ -15,14 +15,14 @@ class Directory(MutableMapping):
         if not isdir(path):
             os.makedirs(path)
         self.path = Path(path)
-        self.__name__ = basename(path)
+        self.__name__ = self.path.name
 
     def __getitem__(self, key):
-        path = join(self.path, key)
+        path = self.path / key
         return load(path)
 
     def lazy_get(self, key):
-        path = join(self.path, key)
+        path = self.path / key
         return load(path, lazy=True)
 
     def __setitem__(self, key: str, file_or_dir):
@@ -34,10 +34,10 @@ class Directory(MutableMapping):
             raise FileExistsError("[WinError 183] Cannot create a file when that file already exists: "
                                   + self[key].path)
         else:
-            copyfile(file_or_dir.path, join(self.path, key))
+            copyfile(file_or_dir.path, self.path / key)
 
     def __delitem__(self, key):
-        path = join(self.path, key)
+        path = self.path / key
         remove_path(path)
 
     def __iter__(self):

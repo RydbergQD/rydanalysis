@@ -20,6 +20,8 @@ class ExpSequence(Directory):
         # self.averaged_images = self.analysis['averaged_images']
 
     def _open_raw_data(self):
+        if (self.path / 'raw_data.h5').is_file:
+            return xr.open_dataset(self.path / 'raw_data.h5')
         path = self.path / 'raw_data'
         return xr.open_mfdataset(path.glob('*.h5'), concat_dim='tmstp', combine='nested', parallel=True)
 

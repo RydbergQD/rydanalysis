@@ -19,7 +19,7 @@ def split_signal_noise(im, n_components=None, return_residual=True):
     Args:
         return_residual (bool): whether to return the residual
 
-        im: input array of images with shape (index-dim, x-dim,  y-dim)
+        im: input array of single_image with shape (index-dim, x-dim,  y-dim)
         n_components: Number of components to keep, if n_components is not set all components are kept
 
     Returns:
@@ -46,7 +46,7 @@ def fit_with_pc(im, n_components=None):
     """
 
     Args:
-        im: input array of images with shape (index-dim, x-dim,  y-dim)
+        im: input array of single_image with shape (index-dim, x-dim,  y-dim)
         n_components: Number of components to keep, if n_components is not set all components are kept
 
     Returns:
@@ -66,7 +66,7 @@ def decompose_images(im, n_components=None):
     """
 
     Args:
-        im: input array of images with shape (index-dim, x-dim,  y-dim)
+        im: input array of single_image with shape (index-dim, x-dim,  y-dim)
         n_components: Number of components to keep, if n_components is not set all components are kept
 
     Returns:

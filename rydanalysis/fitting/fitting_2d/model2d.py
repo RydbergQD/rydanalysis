@@ -81,7 +81,7 @@ class Model2d(Model):
             kw_args = {}
             keywords_ = None
             sig = inspect.signature(self.func)
-            for fnam, fpar in sig.parameters.items():
+            for fnam, fpar in sig.single_parameters.items():
                 if fpar.kind == fpar.VAR_KEYWORD:
                     keywords_ = fnam
                 elif fpar.kind == fpar.POSITIONAL_OR_KEYWORD:
@@ -149,6 +149,28 @@ class Model2d(Model):
                 raise ValueError(self._invalid_par % (arg, fname))
         # the following as been changed from OrderedSet for the time being.
         self._param_names = names[:]
+
+    def _update_kwargs(self, data, **kwargs):
+        for var in self.independent_vars:
+            if var in kwargs:
+                continue
+            elif var in data.coords:
+                kwargs[var] = data[var]
+            else:
+                raise ValueError('Not initialized variable ', var)
+        return kwargs
+
+
+    def create_xarray(self, data, **kwargs):
+        if isinstance(data, xr.DataArray):
+            data = data.transpose(*self.independent_vars)
+        else:
+            data = xr.DataArray(data, dims=self.independent_vars)
+
+        for var in self.independent_vars:
+            var_data = kwargs[var]
+            data = data.assign_coords(**{var: var_data})
+            return data
 
     def fit(self, data, params=None, weights=None, method='leastsq',
             iter_cb=None, scale_covar=True, verbose=False, fit_kws=None,
@@ -252,26 +274,30 @@ class Model2d(Model):
 
         # Create xarray from data and weights
         # convert other iterables to xarrays indeces.
-        if isinstance(data, xr.DataArray):
-            data = data.transpose(*self.independent_vars)
-        else:
-            data = xr.DataArray(data, dims=self.independent_vars)
-        if isinstance(weights, xr.DataArray):
-            weights = weights.transpose(*self.independent_vars)
-        elif weights is not None:
-            weights = xr.DataArray(weights, dims=self.independent_vars)
-
-        for var in self.independent_vars:
-            if var in kwargs:
-                var_data = kwargs[var]
-            elif var in data.coords:
-                var_data = data.coords[var]
-            else:
-                raise ValueError('Not initialized variable ', var)
-            data = data.assign_coords(**{var: var_data})
-            kwargs[var] = data[var]
-            if weights is not None:
-                weights = weights.assign_coords(**{var: var_data})
+        # if isinstance(data, xr.DataArray):
+        #     data = data.transpose(*self.independent_vars)
+        # else:
+        #     data = xr.DataArray(data, dims=self.independent_vars)
+        # if isinstance(weights, xr.DataArray):
+        #     weights = weights.transpose(*self.independent_vars)
+        # elif weights is not None:
+        #     weights = xr.DataArray(weights, dims=self.independent_vars)
+        #
+        # for var in self.independent_vars:
+        #     if var in kwargs:
+        #         var_data = kwargs[var]
+        #     elif var in data.coords:
+        #         var_data = data.coords[var]
+        #     else:
+        #         raise ValueError('Not initialized variable ', var)
+        #     data = data.assign_coords(**{var: var_data})
+        #     kwargs[var] = data[var]
+        #     if weights is not None:
+        #         weights = weights.assign_coords(**{var: var_data})
+        kwargs = self._update_kwargs(data, **kwargs)
+        data = self.create_xarray(data, **kwargs)
+        if weights is not None:
+            weights = self.create_xarray(weights, **kwargs)
 
         # Handle null/missing values.
         if nan_policy is not None:

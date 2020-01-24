@@ -33,12 +33,12 @@ def calc_batch_transmission(seq_dir, out_dir,
                             xslice=slice(None),
                             yslice=slice(None)):
     
-    """Calculate the transmission images for a sequence of raw experimental data
+    """Calculate the transmission single_image for a sequence of raw experimental data
 
     Args:
 
     :param seq_dir: directory of the raw data in the new format
-    :param out_dir: directory to store the calculated transmission images
+    :param out_dir: directory to store the calculated transmission single_image
     :param remove_fringes: 
     :param replace_invalid: 
     :param ref_basis: 

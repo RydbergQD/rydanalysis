@@ -56,7 +56,7 @@ def da_apply_fit(da, params, model_class, mask=None, return_type='params'):
 
     Args:
         mask: if provided, fit only the masked area
-        da: 3d xr.DataArray of images with shape (n_shots, n_pixel_x, n_pixel_y)
+        da: 3d xr.DataArray of single_image with shape (n_shots, n_pixel_x, n_pixel_y)
         params: fit parameters
         model_class: fitting model to use
 
