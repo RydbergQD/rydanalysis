@@ -81,7 +81,7 @@ class Model2d(Model):
             kw_args = {}
             keywords_ = None
             sig = inspect.signature(self.func)
-            for fnam, fpar in sig.single_parameters.items():
+            for fnam, fpar in sig.parameters.items():
                 if fpar.kind == fpar.VAR_KEYWORD:
                     keywords_ = fnam
                 elif fpar.kind == fpar.POSITIONAL_OR_KEYWORD:

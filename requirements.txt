@@ -1,3 +1,4 @@
+arc
 scikit-image
 click
 xarray
@@ -11,3 +12,4 @@ prefect
 scikit-learn
 lmfit
 pytables
+ARC-Alkali-Rydberg-Calculator
