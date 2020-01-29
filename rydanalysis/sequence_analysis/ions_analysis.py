@@ -38,3 +38,36 @@ def count_ions(scope_traces, dim='time', height=0.03, width=3, **kwargs):
     if isinstance(scope_traces, xr.DataArray):
         ions.name = 'ions'
     return ions
+
+
+def _integrate_ions_reduce(trace, axis=0, height=0.03):
+    """
+    Integrates ion trace (only accounting values larger than height.
+    Args:
+        trace: 1D array
+        axis: not used but needed to use this function with xarray.reduce
+        height: minimal height of teh peaks
+
+    Returns:
+        Integrated ion signal (float)
+    """
+    trace = -trace[trace < -height]
+    return trace.sum()
+
+
+def integrate_ions(scope_traces, dim='time', height=0.03):
+    """
+    Integrate ions on multiple traces bundled in an xarray DataArray or Dataset.
+    Args:
+        scope_traces: xarray DataArray or Dataset
+        dim: Dimension along the peaks are counted
+        height: minimal height of teh peaks
+
+    Returns:
+        Integrated ion signal (xarray DataArray or Dataset)
+    """
+    group_by_object = scope_traces.groupby('tmstp')
+    ions = group_by_object.reduce(_count_ions_reduce, dim=dim, height=height)
+    if isinstance(scope_traces, xr.DataArray):
+        ions.name = 'ionsInt'
+    return ions
