@@ -1,3 +1,4 @@
+scipy
 arc
 scikit-image
 click
