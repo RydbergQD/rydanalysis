@@ -131,7 +131,10 @@ class OldStructure(Directory):
     @cached_property
     def raw_data(self):
         raw_data = self.images
-        raw_data['scope_traces'] = self.scope_traces
+        try:
+            raw_data['scope_traces'] = self.scope_traces
+        except:
+            pass
         raw_data.attrs.update(self.parameters)
         return raw_data
 

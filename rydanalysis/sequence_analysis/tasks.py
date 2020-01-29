@@ -21,6 +21,7 @@ def create_new_data_dir(data_root, seq_path):
 def old_to_new_datastructure(in_dir, out_dir):
     old_scan = OldStructure(in_dir)
     old_scan.create_new(out_dir)
+    
     return out_dir
 
 
