@@ -70,9 +70,10 @@ class AbsorptionImaging(DipoleTransition):
     @classmethod
     def from_raw_data(cls, raw_data: xr.Dataset):
         t_exp = raw_data.tCAM * 1e-3
+        binning = 100/raw_data.x.size
         reference_image = raw_data.image_03.mean('tmstp')
         background_image = raw_data.image_05.mean('tmstp')
-        return cls(reference_image, background_image, t_exp)
+        return cls(reference_image, background_image, t_exp, binning=binning)
 
     def __call__(self, ground_state_image, reference_image, **kwargs):
         transmission = ground_state_image / reference_image
