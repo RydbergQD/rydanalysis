@@ -128,7 +128,7 @@ def ref_images_truncated_svd(a, b, mask=None, n_components=None):
     decomp = decomp.fit(a_flat)
 
     # linear least squares fit
-    coeff = np.linalg.lstsq(decomp.components_[:, np.ravel(mask)].T, b[:, mask].T)[0]
+    coeff = np.linalg.lstsq(decomp.components_[:, np.ravel(mask)].T, b[:, mask].T, rcond=None)[0]
     fit = coeff.T @ decomp.components_
 
     # reshaping to list of 2d samples
