@@ -99,6 +99,7 @@ class OldStructure(Directory):
                 'y': y}
         )
         images = images.assign_coords(self.variables)
+        images= images.set_index(tmstp=list(self.variables.columns))
         return images
 
     @cached_property
@@ -123,6 +124,7 @@ class OldStructure(Directory):
             coords={'tmstp': tmstps, 'time': times}
         )
         scope_traces = scope_traces.assign_coords(self.variables)
+        scope_traces = scope_traces.set_index(tmstp=list(self.variables.columns))
         return scope_traces
 
     def save_raw_data(self):
