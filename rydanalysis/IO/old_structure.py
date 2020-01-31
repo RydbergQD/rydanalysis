@@ -92,14 +92,14 @@ class OldStructure(Directory):
         images = np.array(images)
         images = images.transpose((1, 0, 2, 3))
         images = xr.Dataset(
-            {'image_' + str(i).zfill(2): (['tmstp', 'x', 'y'], image) for i, image in enumerate(images)},
+            {'image_' + str(i).zfill(2): (['shot', 'x', 'y'], image) for i, image in enumerate(images)},
             coords={
                 'tmstp': tmstps,
                 'x': x,
                 'y': y}
         )
         images = images.assign_coords(self.variables)
-        images= images.set_index(tmstp=list(self.variables.columns))
+        images = images.set_index(shot=list(self.variables.columns)+['tmstp'])
         return images
 
     @cached_property
@@ -120,15 +120,16 @@ class OldStructure(Directory):
 
         scope_traces = xr.DataArray(
             np.array(scope_traces),
-            dims=['tmstp', 'time'],
+            dims=['shot', 'time'],
             coords={'tmstp': tmstps, 'time': times}
         )
         scope_traces = scope_traces.assign_coords(self.variables)
-        scope_traces = scope_traces.set_index(tmstp=list(self.variables.columns))
+        scope_traces = scope_traces.set_index(shot=list(self.variables.columns)+['tmstp'])
         return scope_traces
 
     def save_raw_data(self):
-        self.raw_data.to_netcdf(self.path / 'raw_data.h5')
+        data = self.raw_data.reset_index('shot')
+        data.to_netcdf(self.path / 'raw_data.h5')
 
     @cached_property
     def raw_data(self):
@@ -152,6 +153,7 @@ class OldStructure(Directory):
             }
         )
         images = images.assign_coords(self.variables.loc[tmstp])
+        images = images.set_index(shot=list(self.variables.columns) + ['tmstp'])
         return images
 
     @GetterWithTimestamp
