@@ -75,7 +75,15 @@ class AbsorptionImaging(DipoleTransition):
         background_image = raw_data.image_05.mean('tmstp')
         return cls(reference_image, background_image, t_exp, binning=binning)
 
-    def __call__(self, ground_state_image, reference_image, **kwargs):
+    def build_reference_image(self):
+        """
+        Build reference image from pca.
+        :return:
+        """
+        raise NotImplentedError()
+
+    def calculate_density(self, ground_state_image, **kwargs):
+        reference_image = self.build_reference()
         transmission = ground_state_image / reference_image
         return - (1 + self.saturation_parameter) / self.cross_section * np.log(transmission)
 

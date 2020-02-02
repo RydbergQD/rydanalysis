@@ -21,9 +21,22 @@ class ExpSequence(Directory):
 
     def _open_raw_data(self):
         if (self.path / 'raw_data.h5').is_file:
-            return xr.open_dataset(self.path / 'raw_data.h5')
+            ds = xr.open_dataset(self.path / 'raw_data.h5')
+            ds = self._create_multiindex(ds)
+            return ds
         path = self.path / 'raw_data'
-        return xr.open_mfdataset(path.glob('*.h5'), concat_dim='tmstp', combine='nested', parallel=True)
+        ds = xr.open_mfdataset(path.glob('*.h5'), concat_dim='tmstp', combine='nested', parallel=True)
+        ds = self._create_multiindex(ds)
+        return ds
+
+    @staticmethod
+    def _create_multiindex(ds):
+        coord_keys = list(ds.coords.keys())
+        coord_keys.remove('x')
+        coord_keys.remove('y')
+        coord_keys.remove('time')
+        ds = ds.set_index(shot=coord_keys)
+        return ds
 
     @property
     def tmstps(self):

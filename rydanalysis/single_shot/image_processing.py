@@ -74,6 +74,7 @@ def nn_replace_invalid(data, invalid=None):
 
 
 def prepare_ref_basis(ref_images, mask=None):
+    """deprecated"""
     ref_images = ref_images.astype(float)
     n, x, y = ref_images.shape
     if mask is None:
@@ -86,6 +87,7 @@ def prepare_ref_basis(ref_images, mask=None):
 
 
 def calc_ref_image(image, B_inv=None, R=None, mask=None, coefficients=False):
+    """deprecated"""
     if mask is None:
         mask = ~np.zeros_like(image, dtype=bool)
     k = np.ravel(mask)
@@ -128,7 +130,7 @@ def ref_images_truncated_svd(a, b, mask=None, n_components=None):
     decomp = decomp.fit(a_flat)
 
     # linear least squares fit
-    coeff = np.linalg.lstsq(decomp.components_[:, np.ravel(mask)].T, b[:, mask].T)[0]
+    coeff = np.linalg.lstsq(decomp.components_[:, np.ravel(mask)].T, b[:, mask].T, rcond=None)[0]
     fit = coeff.T @ decomp.components_
 
     # reshaping to list of 2d samples
