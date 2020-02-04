@@ -17,6 +17,7 @@ import shutil
 class OldStructure(Directory):
     strftime = '%Y_%m_%d_%H.%M.%S'
     csv_kwargs = dict(index_col=0, squeeze=True, sep='\t', decimal=',', header=None)
+    fast_csv_kwargs = dict(usecols=[1], squeeze=True, sep='\t', decimal=',', header=None)
 
     def __init__(self, path, handle_key_errors='ignore', sensor_widths=(428, 2191.36)):
         super(OldStructure, self).__init__(path)
@@ -88,44 +89,48 @@ class OldStructure(Directory):
                 while len(x) == 0:
                     x = self.get_image_coords(images[0][0], 0)
                     y = self.get_image_coords(images[0][0], 1)
+        if len(images) == 0:
+            raise AttributeError("No images are found.")
+
+        shot_multi_index = self.variables.loc[tmstps].reset_index()
+        shot_multi_index = pd.MultiIndex.from_frame(shot_multi_index)
 
         images = np.array(images)
         images = images.transpose((1, 0, 2, 3))
         images = xr.Dataset(
             {'image_' + str(i).zfill(2): (['shot', 'x', 'y'], image) for i, image in enumerate(images)},
             coords={
-                'tmstp': tmstps,
+                'shot': shot_multi_index,
                 'x': x,
                 'y': y}
         )
-        images = images.assign_coords(self.variables)
-        images = images.set_index(shot=list(self.variables.columns)+['tmstp'])
+        # images = images.assign_coords(self.variables)
+        # images = images.set_index(shot=list(self.variables.columns)+['tmstp'])
         return images
 
     @cached_property
     def scope_traces(self):
-        scope_path = self.path / 'Scope Traces'
-        scope_traces = []
-        tmstps = []
-        times = []
-        for tmstp in tqdm(self.tmstps, desc='load scope traces', leave=False):
-            file = scope_path / tmstp.strftime(self.strftime + '_C1.csv')
-            if file.is_file():
-                scope_trace = pd.read_csv(file, **self.csv_kwargs)
-                if scope_trace.shape[0] > 1:
-                    scope_traces.append(scope_trace.values)
-                    tmstps.append(tmstp)
-                    while len(times) == 0:
-                        times = scope_trace.index.values
+        times, scope_traces = self.initialize_traces()
+        for n, tmstp in enumerate(tqdm(self.tmstps, desc='load scope traces', leave=False)):
+            scope_traces[n] = self.fast_scope_trace(tmstp)
+
+        shot_multi_index = self.variables.reset_index()
+        shot_multi_index = pd.MultiIndex.from_frame(shot_multi_index)
 
         scope_traces = xr.DataArray(
-            np.array(scope_traces),
+            scope_traces,
             dims=['shot', 'time'],
-            coords={'tmstp': tmstps, 'time': times}
+            coords={'shot': shot_multi_index, 'time': times}
         )
-        scope_traces = scope_traces.assign_coords(self.variables)
-        scope_traces = scope_traces.set_index(shot=list(self.variables.columns)+['tmstp'])
         return scope_traces
+
+    def initialize_traces(self):
+        for tmstp in self.tmstps:
+            trace = self.single_scope_trace[tmstp]
+            if trace is not None:
+                shape = (len(self.tmstps), trace.size)
+                return trace.index, np.full(shape, np.NaN, dtype=np.float32)
+        raise AttributeError("No scope_traces are found.")
 
     def save_raw_data(self):
         data = self.raw_data.reset_index('shot')
@@ -133,10 +138,14 @@ class OldStructure(Directory):
 
     @cached_property
     def raw_data(self):
-        raw_data = self.images
+        raw_data = xr.Dataset()
+        try:
+            raw_data = xr.merge([raw_data, self.images])
+        except AttributeError:
+            pass
         try:
             raw_data['scope_traces'] = self.scope_traces
-        except:
+        except AttributeError:
             pass
         raw_data.attrs.update(self.parameters)
         return raw_data
@@ -164,7 +173,7 @@ class OldStructure(Directory):
         parameter_path = self.path / 'Variables' / tmstp.strftime(self.strftime + '.txt')
         parameters = pd.read_csv(parameter_path, **self.csv_kwargs)
         #_parameters_class = self['Variables'].lazy_get(tmstp.strftime(self.strftime + '.txt'))
-        #parameters = _parameters_class.read(**self.csv_kwargs)
+        # parameters = _parameters_class.read(**self.csv_kwargs)
         parameters.name = tmstp
         parameters.index.name = None
         parameters.drop('dummy', inplace=True)
@@ -176,11 +185,20 @@ class OldStructure(Directory):
 
     @GetterWithTimestamp
     def single_scope_trace(self, tmstp):
-        path = join(self['Scope Traces'].path, tmstp.strftime(self.strftime + '_C1.csv'))
-        scope_trace = pd.read_csv(path, **self.csv_kwargs)
-        scope_trace.name = tmstp
-        scope_trace.index.name = 'time'
-        return scope_trace
+        file = self.path / 'Scope Traces' / tmstp.strftime(self.strftime + '_C1.csv')
+        if file.is_file():
+            scope_trace = pd.read_csv(file, **self.csv_kwargs)
+            if scope_trace.shape[0] > 1:
+                scope_trace.name = tmstp
+                scope_trace.index.name = 'time'
+                return scope_trace
+
+    def fast_scope_trace(self, tmstp):
+        file = self.path / 'Scope Traces' / tmstp.strftime(self.strftime + '_C1.csv')
+        if file.is_file():
+            scope_trace = pd.read_csv(file, **self.fast_csv_kwargs)
+            if scope_trace.shape[0] > 1:
+                return scope_trace.values
 
     @GetterWithTimestamp
     def voltage(self, tmstp):
