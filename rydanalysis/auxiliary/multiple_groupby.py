@@ -106,7 +106,6 @@ class MultipleGroupBy:
     def __init__(self, arr):
         # Create pandas DataFrame with MultiColumns containing x and y and multiindex containing the shots multiindex
         data_coords = [dim for dim in arr.dims if dim != 'shot']
-        print(data_coords)
         df = arr.stack({'data_coords': data_coords}).to_pandas()
         self._dataframe = df
 

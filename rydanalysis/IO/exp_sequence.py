@@ -31,10 +31,10 @@ class ExpSequence(Directory):
 
     @staticmethod
     def _create_multiindex(ds):
-        coord_keys = list(ds.coords.keys())
-        coord_keys.remove('x')
-        coord_keys.remove('y')
-        coord_keys.remove('time')
+        coord_keys = [coord for coord in ds.coords.keys() if coord not in {'x', 'y', 'time'}]
+        #coord_keys.remove('x')
+        #coord_keys.remove('y')
+        #coord_keys.remove('time')
         ds = ds.set_index(shot=coord_keys)
         return ds
 
