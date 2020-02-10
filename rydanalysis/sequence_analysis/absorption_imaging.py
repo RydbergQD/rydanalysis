@@ -4,7 +4,7 @@ from scipy.constants import c, h, e, epsilon_0, hbar
 from scipy.constants import physical_constants
 import xarray as xr
 
-from rydanalysis.single_shot.image_processing import ReferenceFinder
+from rydanalysis.auxiliary.decorators import cached_property
 
 a0 = physical_constants['Bohr radius'][0]
 
@@ -61,19 +61,26 @@ class AbsorptionImaging(DipoleTransition):
     QUANTUM_EFFICIENCY = 0.44
     PIXEL_SIZE = 2.09e-6
 
-    def __init__(self, reference_images, background=0, mask=None, t_exp=None,
-                 transition_kwargs=None, pca_kwargs=None, binning=2):
+    def __init__(self, reference_images, background=0, mask=None,
+                 transition_kwargs=None, pca_kwargs=None, binning=2, t_exp=None, saturation_calc_method='flat_imaging'):
         """
 
         Args:
-            reference_images:
-            t_exp:
-            background:
-            mask:
-            transition_kwargs:
-            pca_kwargs:
-            binning:
+            reference_images: xr.DataArray of reference images, used to calculated saturation parameter and for pca
+            background: background of the camera, this is going to be averaged and subtracted
+             from the light and atom images.
+            mask: defines the region o the cloud. The edge region is given by np.logical_not(mask).
+            transition_kwargs: Quantum numbers defining the transition
+            pca_kwargs: kwargs defining the pca, most important is n_components, which defaults to 30.
+            binning: binning of the camera, default is a binning=2 (2x2 binning)
+            t_exp: Exposure time of the camera. If t_exp=None, the saturation parameter is set to 0. Default is None.
+            saturation_calc_method: To calculate the saturation parameter, the fringes need to be removed from the
+             reference image. By default, this is done by assuming an imaging beam larger than the cloud, hence the
+              saturation parameter is averaged over the light intensity in the masked region.
         """
+        if transition_kwargs is None:
+            transition_kwargs = {}
+        self.transition_kwargs = transition_kwargs
         super().__init__(**transition_kwargs)
 
         self.background = background
@@ -81,10 +88,14 @@ class AbsorptionImaging(DipoleTransition):
         self.mask = mask
 
         self.t_exp = t_exp
+        self.saturation_calc_method = saturation_calc_method
         self.binning = binning
 
+        if pca_kwargs is None:
+            pca_kwargs = {}
+        if 'n_components' not in pca_kwargs.keys():
+            pca_kwargs.update(n_components=30)
         self.pca_kwargs = pca_kwargs
-        self.transition_kwargs = transition_kwargs
 
     @classmethod
     def from_raw_data(cls, raw_data: xr.Dataset, mask=None, transition_kwargs=None, pca_kwargs=None):
@@ -97,20 +108,22 @@ class AbsorptionImaging(DipoleTransition):
         return cls(reference_image, background=background, t_exp=t_exp, binning=binning, mask=mask,
                    transition_kwargs=transition_kwargs, pca_kwargs=pca_kwargs)
 
-    @property
+    @cached_property
     def pca(self):
         return self.reference.pca(**self.pca_kwargs)
 
-    def build_reference_image(self, image):
+    def optimized_reference_images(self, images):
         """
-        Build reference image from pca.
-        :return:
+        Build reference images from pca.
         """
-        return ReferenceFinder(self.reference, self.n_components)(image, self.mask)
+        edge_mask = np.logical_not(self.mask)
+        return self.pca.find_references(images.where(edge_mask))
 
-    def calculate_density(self, ground_state_image, **kwargs):
-        reference_image = self.build_reference_image(ground_state_image)
-        transmission = ground_state_image / reference_image
+    def calculate_density(self, images, remove_background=True):
+        if remove_background:
+            images = images - self.background
+        reference_images = self.optimized_reference_images(images)
+        transmission = images / reference_images
         return - (1 + self.saturation_parameter) / self.cross_section * np.log(transmission)
 
     @property
@@ -120,7 +133,11 @@ class AbsorptionImaging(DipoleTransition):
     @property
     def power(self):
         self.check_t_exp()
-        return h * self.frequency * self.reference / (self.QUANTUM_EFFICIENCY * self.t_exp)
+        if self.saturation_calc_method == 'flat_imaging':
+            light = self.reference.where(self.mask).mean()
+        else:
+            raise NotImplementedError("The method {} is not yet implemented".format(self.saturation_calc_method))
+        return h * self.frequency * light / (self.QUANTUM_EFFICIENCY * self.t_exp)
 
     @property
     def intensity(self):

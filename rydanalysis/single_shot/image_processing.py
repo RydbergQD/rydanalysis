@@ -170,7 +170,7 @@ class PCAAccessor:
                         random_state=None):
         pca_ = self(n_components, copy, whiten, svd_solver, tol, iterated_power, random_state)
 
-        return pca_.find_reference(images, mask)
+        return pca_.find_references(images, mask)
 
 
 class PCAXarray(decomposition.PCA):
@@ -292,7 +292,7 @@ class PCAXarray(decomposition.PCA):
     #     images = xr.DataArray(stacked_images, dims=self._dims, coords=self._coords)
     #     return images.unstack(self._dims[1])
 
-    def find_reference(self, images, mask=None):
+    def find_references(self, images, mask=None):
         if mask is not None:
             images = images.where(mask)
         images_transformed = self.transform(images)
