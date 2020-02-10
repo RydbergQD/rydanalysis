@@ -4,6 +4,8 @@ from scipy.constants import c, h, e, epsilon_0, hbar
 from scipy.constants import physical_constants
 import xarray as xr
 
+from rydanalysis.single_shot.image_processing import ReferenceFinder
+
 a0 = physical_constants['Bohr radius'][0]
 
 
@@ -59,31 +61,40 @@ class AbsorptionImaging(DipoleTransition):
     QUANTUM_EFFICIENCY = 0.44
     PIXEL_SIZE = 2.09e-6
 
-    def __init__(self, reference_image, background_image, t_exp,
+    def __init__(self, reference_images, mask, t_exp, background=0, n_components=10,
                  n1=5, l1=0, j1=0.5, n2=5, l2=1, j2=1.5, mj1=0.5, mj2=1.5, q=1, binning=2):
         super().__init__(n1=n1, l1=l1, j1=j1, n2=n2, l2=l2, j2=j2, mj1=mj1, mj2=mj2, q=q)
-        self.reference_image = reference_image
-        self.background_image = background_image
+
+        self.background = background
+        self.reference_images = reference_images - background
+        self.mask = mask
+
         self.t_exp = t_exp
         self.binning = binning
+        self.n_components = n_components
 
     @classmethod
-    def from_raw_data(cls, raw_data: xr.Dataset):
+    def from_raw_data(cls, raw_data: xr.Dataset, center_x=0, center_y=0, width_x=100, width_y=100):
         t_exp = raw_data.tCAM * 1e-3
         binning = 100/raw_data.x.size
-        reference_image = raw_data.image_03.mean('tmstp')
-        background_image = raw_data.image_05.mean('tmstp')
-        return cls(reference_image, background_image, t_exp, binning=binning)
 
-    def build_reference_image(self):
+        reference_image = raw_data.image_03
+        background = raw_data.image_05.mean('shot')
+
+        mask = reference_image.elliptical_mask.mask(center_x, center_y, width_x, width_y)
+        mask = np.logical_not(mask)
+
+        return cls(reference_image, mask, t_exp, background, binning=binning)
+
+    def build_reference_image(self, image):
         """
         Build reference image from pca.
         :return:
         """
-        raise NotImplentedError()
+        return ReferenceFinder(self.reference_image, self.n_components)(image, self.mask)
 
     def calculate_density(self, ground_state_image, **kwargs):
-        reference_image = self.build_reference()
+        reference_image = self.build_reference_image(ground_state_image)
         transmission = ground_state_image / reference_image
         return - (1 + self.saturation_parameter) / self.cross_section * np.log(transmission)
 
