@@ -61,37 +61,52 @@ class AbsorptionImaging(DipoleTransition):
     QUANTUM_EFFICIENCY = 0.44
     PIXEL_SIZE = 2.09e-6
 
-    def __init__(self, reference_images, mask, t_exp, background=0, n_components=10,
-                 n1=5, l1=0, j1=0.5, n2=5, l2=1, j2=1.5, mj1=0.5, mj2=1.5, q=1, binning=2):
-        super().__init__(n1=n1, l1=l1, j1=j1, n2=n2, l2=l2, j2=j2, mj1=mj1, mj2=mj2, q=q)
+    def __init__(self, reference_images, background=0, mask=None, t_exp=None,
+                 transition_kwargs=None, pca_kwargs=None, binning=2):
+        """
+
+        Args:
+            reference_images:
+            t_exp:
+            background:
+            mask:
+            transition_kwargs:
+            pca_kwargs:
+            binning:
+        """
+        super().__init__(**transition_kwargs)
 
         self.background = background
-        self.reference_images = reference_images - background
+        self.reference = reference_images - background
         self.mask = mask
 
         self.t_exp = t_exp
         self.binning = binning
-        self.n_components = n_components
+
+        self.pca_kwargs = pca_kwargs
+        self.transition_kwargs = transition_kwargs
 
     @classmethod
-    def from_raw_data(cls, raw_data: xr.Dataset, center_x=0, center_y=0, width_x=100, width_y=100):
+    def from_raw_data(cls, raw_data: xr.Dataset, mask=None, transition_kwargs=None, pca_kwargs=None):
         t_exp = raw_data.tCAM * 1e-3
         binning = 100/raw_data.x.size
 
         reference_image = raw_data.image_03
         background = raw_data.image_05.mean('shot')
 
-        mask = reference_image.elliptical_mask.mask(center_x, center_y, width_x, width_y)
-        mask = np.logical_not(mask)
+        return cls(reference_image, background=background, t_exp=t_exp, binning=binning, mask=mask,
+                   transition_kwargs=transition_kwargs, pca_kwargs=pca_kwargs)
 
-        return cls(reference_image, mask, t_exp, background, binning=binning)
+    @property
+    def pca(self):
+        return self.reference.pca(**self.pca_kwargs)
 
     def build_reference_image(self, image):
         """
         Build reference image from pca.
         :return:
         """
-        return ReferenceFinder(self.reference_image, self.n_components)(image, self.mask)
+        return ReferenceFinder(self.reference, self.n_components)(image, self.mask)
 
     def calculate_density(self, ground_state_image, **kwargs):
         reference_image = self.build_reference_image(ground_state_image)
@@ -104,20 +119,30 @@ class AbsorptionImaging(DipoleTransition):
 
     @property
     def power(self):
-        return h * self.frequency * self.reference_image / (self.QUANTUM_EFFICIENCY * self.t_exp)
+        self.check_t_exp()
+        return h * self.frequency * self.reference / (self.QUANTUM_EFFICIENCY * self.t_exp)
 
     @property
     def intensity(self):
+        self.check_t_exp()
         return self.power / self.pixel_size**2
 
     @property
     def field_strength(self):
+        self.check_t_exp()
         return np.sqrt((2*self.intensity)/(c*epsilon_0))
 
     @property
     def rabi_frequency(self):
+        self.check_t_exp()
         return self.dipole_matrix_element * self.field_strength / hbar
 
     @property
     def saturation_parameter(self):
+        if self.t_exp is None:
+            return 0
         return self.get_saturation_parameter(self.rabi_frequency)
+
+    def check_t_exp(self):
+        if self.t_exp is None:
+            raise ValueError("Not available if no value for tEXP is given")
