@@ -132,9 +132,11 @@ class OldStructure(Directory):
                 return trace.index, np.full(shape, np.NaN, dtype=np.float32)
         raise AttributeError("No scope_traces are found.")
 
-    def save_raw_data(self):
+    def save_raw_data(self, path=None):
+        if path is None:
+            path = self.path
         data = self.raw_data.reset_index('shot')
-        data.to_netcdf(self.path / 'raw_data.h5')
+        data.to_netcdf(path / 'raw_data.h5')
 
     @cached_property
     def raw_data(self):
