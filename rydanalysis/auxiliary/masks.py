@@ -36,3 +36,15 @@ class EllipticalMask(Mask):
         image = self.image
         mask = (((image.x - center_x)/width_x)**2 + ((image.y - center_y)/width_y)**2) < 1
         return mask
+
+@xr.register_dataset_accessor('eit_mask')
+@xr.register_dataarray_accessor('eit_mask')
+class EITMask(Mask):
+    def __init__(self, image):
+        super().__init__(image)
+
+    def mask(self, center_x=0, center_y=0, width_x=200, width_y=600, width_eit=50):
+        image = self.image
+        mask_cloud = (((image.x - center_x)/width_x)**2 + ((image.y - center_y)/width_y)**2) < 1
+        mask_spot = (((image.x - center_x)/width_eit)**2 + ((image.y - center_y)/width_eit)**2) > 1
+        return mask_cloud*mask_spot
