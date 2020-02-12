@@ -185,7 +185,7 @@ class PCAXarray(decomposition.PCA):
 
     @staticmethod
     def stack(images):
-        return images.stack({'image_coords': images.dims[1:]})
+        return images.stack({'image_coords': images.dims[1:]}).dropna('image_coords')
 
     def fit(self, images, y=None):
         # stack images and cache dims and coords
