@@ -225,6 +225,8 @@ class OldStructure(Directory):
         single_shot.to_netcdf(file_path)
 
     def create_new(self, path):
+        UserWarning(" Don't us e this method, it is super slow. Rather use old_seq.save_raw_data()")
+
         if isdir(path):
             if click.confirm('Sequence already exists. Do you want to delete the old sequence and create a new?',
                              default=True):
