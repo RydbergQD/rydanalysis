@@ -145,6 +145,7 @@ class AbsorptionImaging(DipoleTransition):
     @property
     def intensity(self):
         self.check_t_exp()
+        light = self.extract_light()
         return self.power / self.pixel_size**2
 
     @property
