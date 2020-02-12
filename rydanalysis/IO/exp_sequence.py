@@ -20,7 +20,7 @@ class ExpSequence(Directory):
         # self.averaged_images = self.analysis['averaged_images']
 
     def _open_raw_data(self):
-        if (self.path / 'raw_data.h5').is_file:
+        if (self.path / 'raw_data.h5').is_file():
             ds = xr.open_dataset(self.path / 'raw_data.h5')
             ds = self._create_multiindex(ds)
             return ds
