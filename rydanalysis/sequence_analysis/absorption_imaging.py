@@ -34,7 +34,7 @@ class DipoleTransition:
     @property
     def dipole_matrix_element(self):
         return self.atom.getDipoleMatrixElement(self.n1, self.l1, self.j1, self.mj1,
-                                                self.n2, self.l2, self.j2, self.mj2, self.q) * e * a0
+                                                self.n2, self.l2, self.j2, self.mj2, self.q)*e*a0
 
     def get_rabi_freq(self, waist, power):
         return self.atom.getRabiFrequency(self.n1, self.l1, self.j1, self.mj1,
@@ -50,11 +50,11 @@ class DipoleTransition:
         return 1 / self.life_time
 
     def get_saturation_parameter(self, rabi_frequency):
-        return 2 * (rabi_frequency / self.decay_rate) ** 2
+        return 2 * (rabi_frequency / self.decay_rate)**2
 
     @property
     def cross_section(self):
-        return 3 / (2 * np.pi) * self.wavelength
+        return 3/(2*np.pi) * self.wavelength
 
 
 class ReferenceAnalysis(DipoleTransition):
@@ -100,7 +100,7 @@ class ReferenceAnalysis(DipoleTransition):
     @classmethod
     def from_raw_data(cls, raw_data: xr.Dataset, mask=None, transition_kwargs=None, pca_kwargs=None):
         t_exp = raw_data.tCAM * 1e-3
-        binning = 100 / raw_data.x.size
+        binning = 100/raw_data.x.size
 
         reference_image = raw_data.image_03
         background = raw_data.image_05.mean('shot')
@@ -137,12 +137,12 @@ class ReferenceAnalysis(DipoleTransition):
 
     @property
     def intensity(self):
-        return self.power / self.pixel_size ** 2
+        return self.power / self.pixel_size**2
 
     @property
     def field_strength(self):
         self.check_t_exp()
-        return np.sqrt((2 * self.intensity) / (c * epsilon_0))
+        return np.sqrt((2*self.intensity)/(c*epsilon_0))
 
     @property
     def rabi_frequency(self):
@@ -158,39 +158,6 @@ class ReferenceAnalysis(DipoleTransition):
     def check_t_exp(self):
         if self.t_exp is None:
             raise ValueError("Not available if no value for tEXP is given")
-
-
-class AbsorptionImaging(ReferenceAnalysis):
-    def __init__(self, absorption_images, reference_images, background=0, mask=None, crop_mask=None, transition_kwargs=None,
-                 pca_kwargs=None, binning=2, t_exp=None, saturation_calc_method='flat_imaging'):
-        super().__init__(reference_images, background, mask, transition_kwargs, pca_kwargs, binning, t_exp,
-                         saturation_calc_method)
-        self.absorption_images = absorption_images - self.background
-
-    @classmethod
-    def from_raw_data(cls, raw_data: xr.Dataset, mask=None, crop_mask=True, transition_kwargs=None, pca_kwargs=None):
-        t_exp = raw_data.tCAM * 1e-3
-        binning = 100 / raw_data.x.size
-        reference_image = raw_data.image_03.where(crop_mask)
-        background = raw_data.image_05.where(crop_mask).mean('shot')
-        absorption_image = raw_data.image_01.where(crop_mask)
-
-        return cls(absorption_image, reference_image, background=background, t_exp=t_exp, binning=binning, mask=mask,
-                   transition_kwargs=transition_kwargs, pca_kwargs=pca_kwargs)
-
-    @property
-    def transmission(self):
-        reference_images = self.optimized_reference_images(self.absorption_images)
-        transmission = self.absorption_images / reference_images
-        return transmission
-
-    @property
-    def optical_depth(self):
-        -np.log(self.transmission)
-
-    @property
-    def density(self):
-        return - (1 + self.saturation_parameter) / self.cross_section * np.log(self.transmission)
 
 
 class DepletionImaging(AbsorptionImaging):
