@@ -160,6 +160,40 @@ class ReferenceAnalysis(DipoleTransition):
             raise ValueError("Not available if no value for tEXP is given")
 
 
+class AbsorptionImaging(ReferenceAnalysis):
+    def __init__(self, absorption_images, reference_images, background=0, mask=None, crop_mask=None, transition_kwargs=None,
+                 pca_kwargs=None, binning=2, t_exp=None, saturation_calc_method='flat_imaging'):
+        super().__init__(reference_images, background, mask, transition_kwargs, pca_kwargs, binning, t_exp,
+                         saturation_calc_method)
+        self.absorption_images = absorption_images - self.background
+
+    @classmethod
+    def from_raw_data(cls, raw_data: xr.Dataset, mask=None, crop_mask=True, transition_kwargs=None, pca_kwargs=None):
+        t_exp = raw_data.tCAM * 1e-3
+        binning = 100 / raw_data.x.size
+        reference_image = raw_data.image_03.where(crop_mask)
+        background = raw_data.image_05.where(crop_mask).mean('shot')
+        absorption_image = raw_data.image_01.where(crop_mask)
+
+        return cls(absorption_image, reference_image, background=background, t_exp=t_exp, binning=binning, mask=mask,
+                   transition_kwargs=transition_kwargs, pca_kwargs=pca_kwargs)
+
+    @property
+    def transmission(self):
+        reference_images = self.optimized_reference_images(self.absorption_images)
+        transmission = self.absorption_images / reference_images
+        return transmission
+
+    @property
+    def optical_depth(self):
+        -np.log(self.transmission)
+
+    @property
+    def density(self):
+        return - (1 + self.saturation_parameter) / self.cross_section * np.log(self.transmission)
+
+
+
 class DepletionImaging(AbsorptionImaging):
     def __init__(self, no_rydberg_images, only_light_images, background=0, mask=None,
                  transition_kwargs=None, pca_kwargs=None, binning=2, t_exp=None,
