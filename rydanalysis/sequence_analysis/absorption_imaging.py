@@ -57,6 +57,7 @@ class DipoleTransition:
         return 3/(2*np.pi) * self.wavelength
 
 
+
 class AbsorptionImaging(DipoleTransition):
     QUANTUM_EFFICIENCY = 0.44
     PIXEL_SIZE = 2.09e-6
@@ -125,6 +126,13 @@ class AbsorptionImaging(DipoleTransition):
         reference_images = self.optimized_reference_images(images)
         transmission = images / reference_images
         return - (1 + self.saturation_parameter) / self.cross_section * np.log(transmission)
+
+    def calculate_transmission(self, images, remove_background=True):
+        if remove_background:
+            images = images - self.background
+        reference_images = self.optimized_reference_images(images)
+        transmission = images / reference_images
+        return transmission
 
     @property
     def pixel_size(self):
