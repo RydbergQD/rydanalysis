@@ -33,7 +33,7 @@ def count_ions(scope_traces, dim='time', height=0.03, width=3, **kwargs):
         Reduced DataArray or Dataset with
     """
     kwargs.update(height=height, width=width)
-    group_by_object = scope_traces.groupby('tmstp')
+    group_by_object = scope_traces.groupby('shot')
     ions = group_by_object.reduce(_count_ions_reduce, dim=dim, **kwargs)
     if isinstance(scope_traces, xr.DataArray):
         ions.name = 'ions'

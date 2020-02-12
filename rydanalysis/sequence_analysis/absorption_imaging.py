@@ -130,18 +130,20 @@ class AbsorptionImaging(DipoleTransition):
     def pixel_size(self):
         return self.binning * self.PIXEL_SIZE
 
+    def extract_light(self, light_images):
+        if self.saturation_calc_method == 'flat_imaging':
+            return light_images.where(self.mask).mean()
+        else:
+            raise NotImplementedError("The method {} is not yet implemented".format(self.saturation_calc_method))
+
     @property
     def power(self):
         self.check_t_exp()
-        if self.saturation_calc_method == 'flat_imaging':
-            light = self.reference.where(self.mask).mean()
-        else:
-            raise NotImplementedError("The method {} is not yet implemented".format(self.saturation_calc_method))
+        light = self.extract_light(self.reference)
         return h * self.frequency * light / (self.QUANTUM_EFFICIENCY * self.t_exp)
 
     @property
     def intensity(self):
-        self.check_t_exp()
         return self.power / self.pixel_size**2
 
     @property
@@ -163,3 +165,18 @@ class AbsorptionImaging(DipoleTransition):
     def check_t_exp(self):
         if self.t_exp is None:
             raise ValueError("Not available if no value for tEXP is given")
+
+
+class DepletionImaging(AbsorptionImaging):
+    def __init__(self, no_rydberg_images, only_light_images, background=0, mask=None,
+                 transition_kwargs=None, pca_kwargs=None, binning=2, t_exp=None,
+                 saturation_calc_method='flat_imaging'):
+        super().__init__(no_rydberg_images, background, mask, transition_kwargs,
+                         pca_kwargs, binning, t_exp, saturation_calc_method)
+        self.only_light_images = only_light_images
+
+    @property
+    def power(self):
+        self.check_t_exp()
+        light = self.extract_light(self.only_light_images)
+        return h * self.frequency * light / (self.QUANTUM_EFFICIENCY * self.t_exp)
