@@ -7,11 +7,11 @@ class Mask(metaclass=ABCMeta):
         self.image = image
 
     @abstractmethod
-    def mask(self, *args, **kwargs):
+    def get_mask(self, *args, **kwargs):
         pass
 
-    def __call__(self, *args, **kwargs):
-        return self.image.where(self.mask(*args, **kwargs))
+    def apply_mask(self, *args, **kwargs):
+        return self.image.where(self.get_mask(*args, **kwargs))
 
 
 @xr.register_dataset_accessor('rectangular_mask')
@@ -20,7 +20,7 @@ class RectangularMask(Mask):
     def __init__(self, image):
         super().__init__(image)
 
-    def mask(self, center_x=0, center_y=0, width_x=50, width_y=50):
+    def get_mask(self, center_x=0, center_y=0, width_x=50, width_y=50):
         image = self.image
         mask = (abs(image.x - center_x) < width_x) * (abs(image.y - center_y) < width_y)
         return mask
@@ -32,7 +32,7 @@ class PolygonMask(Mask):
     def __init__(self, image):
         super().__init__(image)
 
-    def mask(self, coord_vertices):
+    def get_mask(self, coord_vertices):
         try:
             image = self.image.isel(shot=0)
         except ValueError:
@@ -55,7 +55,7 @@ class EllipticalMask(Mask):
     def __init__(self, image):
         super().__init__(image)
 
-    def mask(self, center_x=0, center_y=0, width_x=50, width_y=50):
+    def get_mask(self, center_x=0, center_y=0, width_x=50, width_y=50):
         image = self.image
         mask = (((image.x - center_x)/width_x)**2 + ((image.y - center_y)/width_y)**2) < 1
         return mask
@@ -67,7 +67,7 @@ class EITMask(Mask):
     def __init__(self, image):
         super().__init__(image)
 
-    def mask(self, center_x=0, center_y=0, width_x=200, width_y=600, width_eit=50):
+    def get_mask(self, center_x=0, center_y=0, width_x=200, width_y=600, width_eit=50):
         image = self.image
         mask_cloud = (((image.x - center_x)/width_x)**2 + ((image.y - center_y)/width_y)**2) < 1
         mask_spot = (((image.x - center_x)/width_eit)**2 + ((image.y - center_y)/width_eit)**2) > 1
