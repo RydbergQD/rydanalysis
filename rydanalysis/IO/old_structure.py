@@ -76,61 +76,68 @@ class OldStructure(Directory):
     @cached_property
     def images(self):
         fits_path = self.path / 'FITS Files'
-        images = []
-        tmstps = []
-        x = []
-        y = []
-        for tmstp in tqdm(self.tmstps, desc='load images', leave=False):
+        images = self.initialize_images()
+        for n, tmstp in enumerate(tqdm(self.tmstps, desc='load images', leave=False)):
             file = fits_path / tmstp.strftime(self.strftime + '_full.fts')
             if file.is_file():
                 fits_file = FitsFile(file)
-                images.append(fits_file[0])
-                tmstps.append(tmstp)
-                while len(x) == 0:
-                    x = self.get_image_coords(images[0][0], 0)
-                    y = self.get_image_coords(images[0][0], 1)
-        if len(images) == 0:
-            raise AttributeError("No images are found.")
+                shot = images.shot.sel(tmstp=tmstp)
 
-        shot_multi_index = self.variables.loc[tmstps].reset_index()
-        shot_multi_index = pd.MultiIndex.from_frame(shot_multi_index)
-
-        images = np.array(images)
-        images = images.transpose((1, 0, 2, 3))
-        images = xr.Dataset(
-            {'image_' + str(i).zfill(2): (['shot', 'x', 'y'], image) for i, image in enumerate(images)},
-            coords={
-                'shot': shot_multi_index,
-                'x': x,
-                'y': y}
-        )
-        # images = images.assign_coords(self.variables)
-        # images = images.set_index(shot=list(self.variables.columns)+['tmstp'])
+                for i, image in enumerate(fits_file[0]):
+                    images['image_' + str(i).zfill(2)].loc[shot] = image
         return images
 
     @cached_property
     def scope_traces(self):
-        times, scope_traces = self.initialize_traces()
-        for n, tmstp in enumerate(tqdm(self.tmstps, desc='load scope traces', leave=False)):
-            scope_traces[n] = self.fast_scope_trace(tmstp)
-
-        shot_multi_index = self.variables.reset_index()
-        shot_multi_index = pd.MultiIndex.from_frame(shot_multi_index)
-
-        scope_traces = xr.DataArray(
-            scope_traces,
-            dims=['shot', 'time'],
-            coords={'shot': shot_multi_index, 'time': times}
-        )
+        scope_traces = self.initialize_traces()
+        for tmstp in tqdm(self.tmstps, desc='load scope traces', leave=False):
+            shot = scope_traces.shot.sel(tmstp=tmstp)
+            scope_traces.loc[shot] = self.fast_scope_trace(tmstp)
         return scope_traces
+    
+    @property
+    def shot_multi_index(self):
+        shot_multi_index = self.variables.reset_index()
+        return pd.MultiIndex.from_frame(shot_multi_index)
 
     def initialize_traces(self):
         for tmstp in self.tmstps:
             trace = self.single_scope_trace[tmstp]
             if trace is not None:
                 shape = (len(self.tmstps), trace.size)
-                return trace.index, np.full(shape, np.NaN, dtype=np.float32)
+
+                scope_traces = xr.DataArray(
+                    np.full(shape, np.NaN, dtype=np.float32),
+                    dims=['shot', 'time'],
+                    coords={'shot': self.shot_multi_index, 'time': trace.index}
+                )
+                return scope_traces
         raise AttributeError("No scope_traces are found.")
+
+    def initialize_images(self):
+        for tmstp in self.tmstps:
+            file = self.path / 'FITS Files' / tmstp.strftime(self.strftime + '_full.fts')
+            if file.is_file():
+                fits_file = FitsFile(file)
+                image = fits_file[0]
+
+                n_images, pixel_y, pixel_x = image.shape
+                shape = (len(self.tmstps), pixel_y, pixel_x)
+                empty_image = np.full(shape, np.NaN, dtype=np.float32)
+
+                x = self.get_image_coords(image[0], 0)
+                y = self.get_image_coords(image[0], 1)
+
+                images = xr.Dataset(
+                    {'image_' + str(i).zfill(2): (['shot', 'x', 'y'], empty_image.copy()) for i in range(n_images)},
+                    coords={
+                        'shot': self.shot_multi_index,
+                        'x': x,
+                        'y': y}
+                )
+
+                return images
+        raise AttributeError("No images are found.")
 
     def save_raw_data(self, path=None):
         if path is None:
