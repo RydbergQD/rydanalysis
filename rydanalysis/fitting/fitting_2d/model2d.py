@@ -54,6 +54,7 @@ def get_reducer(option):
 
 
 class Model2d(Model):
+    stacked_name = 'stacked_args'
 
     def __init__(self, func, independent_vars=None, param_names=None,
                  nan_policy='raise', prefix='', name=None, **kws):
@@ -160,17 +161,66 @@ class Model2d(Model):
                 raise ValueError('Not initialized variable ', var)
         return kwargs
 
-
     def create_xarray(self, data, **kwargs):
-        if isinstance(data, xr.DataArray):
-            data = data.transpose(*self.independent_vars)
-        else:
+        if not isinstance(data, xr.DataArray):
             data = xr.DataArray(data, dims=self.independent_vars)
 
-        for var in self.independent_vars:
-            var_data = kwargs[var]
-            data = data.assign_coords(**{var: var_data})
-            return data
+        for var, var_data in kwargs.items():
+            if var in self.independent_vars:
+                var_data = kwargs[var]
+                data = data.assign_coords(**{var: var_data})
+        return data
+
+    def stack(self, data):
+        return data.stack({self.stacked_name: self.independent_vars})
+
+    def unstack(self, data):
+        return data.unstack(self.stacked_name)
+
+    def _residual(self, params, data, weights, **kwargs):
+        """Return the residual.
+
+        Default residual: (data-model)*weights.
+
+        If the model returns complex values, the residual is computed by
+        treating the real and imaginary parts separately. In this case,
+        if the weights provided are real, they are assumed to apply
+        equally to the real and imaginary parts. If the weights are
+        complex, the real part of the weights are applied to the real
+        part of the residual and the imaginary part is treated
+        correspondingly.
+
+        Since the underlying scipy.optimize routines expect numpy.float
+        arrays, the only complex type supported is np.complex.
+
+        The "ravels" throughout are necessary to support pandas.Series.
+
+        """
+        model = self.eval(params, **kwargs)
+        if self.nan_policy == 'raise' and not np.all(np.isfinite(model)):
+            msg = ('The model function generated NaN values and the fit '
+                   'aborted! Please check your model function and/or set '
+                   'boundaries on parameters where applicable. In cases like '
+                   'this, using "nan_policy=\'omit\'" will probably not work.')
+            raise ValueError(msg)
+
+        diff = model - data
+
+        if diff.dtype == np.complex:
+            raise NotImplementedError("Complex values not yet supported. Can be fixed by properly stacking the values.")
+            # # data/model are complex
+            # diff = diff.ravel().view(np.float)
+            # if weights is not None:
+            #     if weights.dtype == np.complex:
+            #         # weights are complex
+            #         weights = weights.ravel().view(np.float)
+            #     else:
+            #         # real weights but complex data
+            #         weights = (weights + 1j * weights).ravel().view(np.float)
+        if weights is not None:
+            diff *= weights
+
+        return self.stack(diff).dropna(self.stacked_name)
 
     def fit(self, data, params=None, weights=None, method='leastsq',
             iter_cb=None, scale_covar=True, verbose=False, fit_kws=None,
@@ -305,11 +355,11 @@ class Model2d(Model):
 
         mask = None
         if self.nan_policy == 'omit':
-            mask = ~isnull(data)
+            mask = ~data.isnull()
             if mask is not None:
-                data = data[mask]
+                data = data.where(mask, drop=True)
             if weights is not None:
-                weights = _align(weights, mask, data)
+                weights = weights.where(mask, drop=True)
 
         # If independent_vars and data are alignable (pandas), align them,
         # and apply the mask from above if there is one.
@@ -342,7 +392,7 @@ class Model2d(Model):
 
         Returns
         -------
-        numpy.ndarray
+        xr.DataArray
             Value of model given the parameters and other arguments.
 
         Notes
@@ -492,13 +542,13 @@ class ModelResult2d(ModelResult):
         best_fit.plot.contour(colors=fit_color, linestyles=fitfmt, ax=ax, **fit_kws)
 
         ax.set_title(self.model.name)
-        #if xlabel is None:
+        # if xlabel is None:
         #    ax.set_xlabel(independent_vars[0])
-        #else:
+        # else:
         #    ax.set_xlabel(xlabel)
-        #if ylabel is None:
+        # if ylabel is None:
         #    ax.set_ylabel(independent_vars[1])
-        #else:
+        # else:
         #    ax.set_ylabel(ylabel)
         # ax.legend(loc='best')
         return ax
