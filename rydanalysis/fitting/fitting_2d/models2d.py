@@ -25,7 +25,7 @@ class Gaussian2D(Model2d):
             c = (np.sin(theta) ** 2) / (2 * sig_x ** 2) + (np.cos(theta) ** 2) / (2 * sig_y ** 2)
             return amp * np.exp(
                 -(a * (cen_x - x) ** 2 + 2 * b * (cen_x - x) * (cen_y - y) + c * (cen_y - y) ** 2)) + offset
-        super().__init__(gaussian, **kwargs)
+        Model2d.__init__(self, gaussian, **kwargs)
 
     def guess(self, data, **kwargs):
         """Estimate initial model parameter values from data."""

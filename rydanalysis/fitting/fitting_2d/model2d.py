@@ -1,11 +1,12 @@
 import warnings
 from copy import deepcopy
-
+import sys
 from lmfit import Model, Parameter
-from lmfit.model import _ensureMatplotlib, propagate_err, ModelResult, isnull, _align
+from lmfit.model import _ensureMatplotlib, propagate_err, ModelResult, isnull, _align, CompositeModel
 import xarray as xr
 import inspect
 import numpy as np
+import operator
 
 
 def get_reducer(option):
@@ -50,6 +51,7 @@ def get_reducer(option):
             parsed_array = array
 
         return parsed_array
+
     return reducer
 
 
@@ -58,8 +60,28 @@ class Model2d(Model):
 
     def __init__(self, func, independent_vars=None, param_names=None,
                  nan_policy='raise', prefix='', name=None, **kws):
-        super().__init__(func, independent_vars, param_names,
-                         nan_policy, prefix, name, **kws)
+        Model.__init__(self, func, independent_vars=independent_vars, param_names=param_names,
+                       nan_policy=nan_policy, prefix=prefix, name=name, **kws)
+
+    def __add__(self, other):
+        """+"""
+        return CompositeModel2d(self, other, operator.add)
+
+    def __sub__(self, other):
+        """-"""
+        return CompositeModel2d(self, other, operator.sub)
+
+    def __mul__(self, other):
+        """*"""
+        return CompositeModel2d(self, other, operator.mul)
+
+    def __div__(self, other):
+        """/"""
+        return CompositeModel2d(self, other, operator.truediv)
+
+    def __truediv__(self, other):
+        """/"""
+        return CompositeModel2d(self, other, operator.truediv)
 
     def _parse_params(self):
         """Build parameters from function arguments."""
@@ -77,7 +99,7 @@ class Model2d(Model):
             for name, defval in self.func.kwargs:
                 kw_args[name] = defval
         # 2. modern, best-practice approach: use inspect.signature
-        else:
+        elif sys.version_info > (3, 4):
             pos_args = []
             kw_args = {}
             keywords_ = None
@@ -92,6 +114,15 @@ class Model2d(Model):
                         kw_args[fnam] = fpar.default
                 elif fpar.kind == fpar.VAR_POSITIONAL:
                     raise ValueError("varargs '*%s' is not supported" % fnam)
+        # 3. Py2 compatible approach
+        else:
+            argspec = inspect.getargspec(self.func)
+            keywords_ = argspec.keywords
+            pos_args = argspec.args
+            kw_args = {}
+            if argspec.defaults is not None:
+                for val in reversed(argspec.defaults):
+                    kw_args[pos_args.pop()] = val
         # inspection done
 
         self._func_haskeywords = keywords_ is not None
@@ -412,6 +443,13 @@ class Model2d(Model):
             kwargs[variable] = xr.DataArray(data_var, coords={variable: data_var}, dims=variable)
 
         return self.func(**self.make_funcargs(params, kwargs))
+
+    def copy(self, **kwargs):
+        """DOES NOT WORK."""
+        raise NotImplementedError("Model.copy does not work. Make a new Model")
+
+
+class CompositeModel2d(CompositeModel, Model2d):
 
     def copy(self, **kwargs):
         """DOES NOT WORK."""
