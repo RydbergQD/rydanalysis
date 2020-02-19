@@ -58,3 +58,8 @@ class ParametersToDataset:
 
     def __call__(self):
         return parameters_to_dataset(self.params)
+
+
+def fit_dataarray(image, model, params):
+    fit_result = model.fit(image, params)
+    return parameters_to_dataset(fit_result.params)
