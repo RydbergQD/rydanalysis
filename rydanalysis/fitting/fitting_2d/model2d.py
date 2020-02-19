@@ -574,7 +574,7 @@ class ModelResult2d(ModelResult):
             init_data.plot.contour(colors=init_color, linestyles=initfmt, ax=ax, **init_kws)
 
         data = reduce_complex(self.data)
-        data.plot(ax=ax, label='data', **data_kws)
+        data.plot(ax=ax, label='data', center=False, **data_kws)
 
         best_fit = reduce_complex(self.model.eval(self.params, **xy_array_dense))
         best_fit.plot.contour(colors=fit_color, linestyles=fitfmt, ax=ax, **fit_kws)
