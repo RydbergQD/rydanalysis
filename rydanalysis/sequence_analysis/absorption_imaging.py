@@ -54,7 +54,7 @@ class DipoleTransition:
 
     @property
     def cross_section(self):
-        return 3/(2*np.pi) * self.wavelength
+        return 3/(2*np.pi) * self.wavelength**2
 
 
 class ReferenceAnalysis(DipoleTransition):
@@ -186,24 +186,38 @@ class AbsorptionImaging(ReferenceAnalysis):
 
     @property
     def optical_depth(self):
-        -np.log(self.transmission)
+        return -np.log(self.transmission)
 
     @property
     def density(self):
-        return - (1 + self.saturation_parameter) / self.cross_section * np.log(self.transmission)
+        return (1 + self.saturation_parameter) / self.cross_section * self.optical_depth
 
 
-
-class DepletionImaging(AbsorptionImaging):
-    def __init__(self, no_rydberg_images, only_light_images, background=0, mask=None,
+class DepletionImaging(ReferenceAnalysis):
+    def __init__(self, with_rydberg_images, no_rydberg_images, only_light_images, background=0, mask=None,
                  transition_kwargs=None, pca_kwargs=None, binning=2, t_exp=None,
                  saturation_calc_method='flat_imaging'):
         super().__init__(no_rydberg_images, background, mask, transition_kwargs,
                          pca_kwargs, binning, t_exp, saturation_calc_method)
-        self.only_light_images = only_light_images
+        self.only_light_images = only_light_images - background
+        self.with_rydberg_images = with_rydberg_images - background
 
     @property
     def power(self):
         self.check_t_exp()
         light = self.extract_light(self.only_light_images)
         return h * self.frequency * light / (self.QUANTUM_EFFICIENCY * self.t_exp)
+
+    @property
+    def transmission(self):
+        reference_images = self.optimized_reference_images(self.with_rydberg_images)
+        transmission = self.with_rydberg_images / reference_images
+        return transmission
+
+    @property
+    def optical_depth(self):
+        return -np.log(self.transmission)
+
+    @property
+    def density(self):
+        return (1 + self.saturation_parameter) / self.cross_section * self.optical_depth
