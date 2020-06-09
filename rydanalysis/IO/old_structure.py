@@ -81,10 +81,8 @@ class OldStructure(Directory):
             file = fits_path / tmstp.strftime(self.strftime + '_full.fts')
             if file.is_file():
                 fits_file = FitsFile(file)
-                shot = images.shot.sel(tmstp=tmstp)
-
                 for i, image in enumerate(fits_file[0]):
-                    images['image_' + str(i).zfill(2)].loc[shot] = image
+                    images['image_' + str(i).zfill(2)].loc[{'tmstp': tmstp}] = image
         return images
 
     @cached_property
@@ -94,7 +92,7 @@ class OldStructure(Directory):
             shot = scope_traces.shot.sel(tmstp=tmstp)
             scope_traces.loc[shot] = self.fast_scope_trace(tmstp)
         return scope_traces
-    
+
     @property
     def shot_multi_index(self):
         shot_multi_index = self.variables.reset_index()
@@ -181,7 +179,7 @@ class OldStructure(Directory):
     def single_parameters(self, tmstp):
         parameter_path = self.path / 'Variables' / tmstp.strftime(self.strftime + '.txt')
         parameters = pd.read_csv(parameter_path, **self.csv_kwargs)
-        #_parameters_class = self['Variables'].lazy_get(tmstp.strftime(self.strftime + '.txt'))
+        # _parameters_class = self['Variables'].lazy_get(tmstp.strftime(self.strftime + '.txt'))
         # parameters = _parameters_class.read(**self.csv_kwargs)
         parameters.name = tmstp
         parameters.index.name = None
@@ -266,7 +264,7 @@ class OldStructure(Directory):
         return old_la
 
     def get_old_la_from_tmstp(self, tmstp):
-        time = tmstp.hour * 60*60 + tmstp.minute * 60 + tmstp.second
+        time = tmstp.hour * 60 * 60 + tmstp.minute * 60 + tmstp.second
         old_la = self.old_la
         old_la = old_la.loc[time]
         old_la.name = tmstp
