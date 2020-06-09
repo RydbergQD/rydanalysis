@@ -55,10 +55,13 @@ class EllipticalMask(Mask):
     def __init__(self, image):
         super().__init__(image)
 
-    def get_mask(self, center_x=0, center_y=0, width_x=50, width_y=50):
+    def get_mask(self, center_x=0, center_y=0, width_x=50, width_y=50, x='x', y='y', invert=False):
         image = self.image
-        mask = (((image.x - center_x)/width_x)**2 + ((image.y - center_y)/width_y)**2) < 1
-        return mask
+        mask = (((image[x] - center_x)/width_x)**2 + ((image[y] - center_y)/width_y)**2) < 1
+        if invert:
+            return ~mask
+        else:
+            return mask
 
 
 @xr.register_dataset_accessor('eit_mask')

@@ -140,7 +140,8 @@ class OldStructure(Directory):
     def save_raw_data(self, path=None):
         if path is None:
             path = self.path
-        data = self.raw_data.reset_index('shot')
+        data = self.raw_data
+        data = data.reset_index('shot')
         data.to_netcdf(path / 'raw_data.h5')
 
     @cached_property
