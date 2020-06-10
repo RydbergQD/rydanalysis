@@ -25,6 +25,7 @@ class Gaussian2D(Model2d):
             c = (np.sin(theta) ** 2) / (2 * sig_x ** 2) + (np.cos(theta) ** 2) / (2 * sig_y ** 2)
             return amp * np.exp(
                 -(a * (cen_x - x) ** 2 + 2 * b * (cen_x - x) * (cen_y - y) + c * (cen_y - y) ** 2)) + offset
+
         Model2d.__init__(self, gaussian, **kwargs)
 
     def guess(self, data, **kwargs):
@@ -42,8 +43,8 @@ class Gaussian2D(Model2d):
         pars['%ssig_x' % self.prefix].set(value=abs(rescaler_x(sig_x)), min=0)
         pars['%ssig_y' % self.prefix].set(value=abs(rescaler_x(sig_y)), min=0)
         theta = np.sin((rescaler_y(1) - rescaler_y(0)) / (rescaler_x(1) - rescaler_x(0)) * np.arcsin(theta))
-        amp = self.average_center(data, **pars)
-        offset = self.average_outside(data, **pars)
+        amp = self.average_center(data, prefix=self.prefix, **pars)
+        offset = self.average_outside(data, prefix=self.prefix, **pars)
         pars['%stheta' % self.prefix].set(value=theta, min=theta - np.pi / 4, max=theta + np.pi / 4)
         pars['%samp' % self.prefix].set(value=amp - offset)
         pars['%soffset' % self.prefix].set(value=offset)
@@ -73,7 +74,12 @@ class Gaussian2D(Model2d):
         return lambda n: ((size - n) * min_x + n * max_x) / size
 
     @staticmethod
-    def average_center(data, **kwargs):
+    def average_center(data, prefix=None, **kwargs):
+        # remove prefix
+        try:
+            kwargs = {key[len(prefix):]: kwargs[key] for key in kwargs}
+        except TypeError:
+            pass
         cen_x = kwargs['cen_x']
         cen_y = kwargs['cen_y']
         sig_x = kwargs['sig_x']
@@ -84,7 +90,12 @@ class Gaussian2D(Model2d):
         return float(data.where(mask).mean())
 
     @staticmethod
-    def average_outside(data, **kwargs):
+    def average_outside(data, prefix=None, **kwargs):
+        # remove prefix
+        try:
+            kwargs = {key[len(prefix):]: kwargs[key] for key in kwargs}
+        except TypeError:
+            pass
         cen_x = kwargs['cen_x']
         cen_y = kwargs['cen_y']
         sig_x = kwargs['sig_x']
