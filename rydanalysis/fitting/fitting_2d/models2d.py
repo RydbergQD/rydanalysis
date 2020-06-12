@@ -28,7 +28,7 @@ class Gaussian2D(Model2d):
 
         Model2d.__init__(self, gaussian, **kwargs)
 
-    def guess(self, data, **kwargs):
+    def guess(self, data, use_quantile=False, **kwargs):
         """Estimate initial model parameter values from data."""
         kwargs = self._update_kwargs(data, **kwargs)
         data = self.create_xarray(data, **kwargs)
@@ -37,14 +37,21 @@ class Gaussian2D(Model2d):
 
         cen_x, cen_y, sig_x, sig_y, theta = self.get_image_properties_from_moments_cart(data.values)
 
+        if np.isnan(sig_y):
+            sig_y = sig_x
+
         pars = self.make_params()
         pars['%scen_x' % self.prefix].set(value=rescaler_x(cen_x))
         pars['%scen_y' % self.prefix].set(value=rescaler_y(cen_y))
         pars['%ssig_x' % self.prefix].set(value=abs(rescaler_x(sig_x)), min=0)
         pars['%ssig_y' % self.prefix].set(value=abs(rescaler_x(sig_y)), min=0)
         theta = np.sin((rescaler_y(1) - rescaler_y(0)) / (rescaler_x(1) - rescaler_x(0)) * np.arcsin(theta))
-        amp = self.average_center(data, prefix=self.prefix, **pars)
-        offset = self.average_outside(data, prefix=self.prefix, **pars)
+        if use_quantile:
+            amp = data.quantile(0.9, dim=('x', 'y')).data
+            offset = data.quantile(0.1, dim=('x', 'y')).data
+        else:
+            amp = self.average_center(data, prefix=self.prefix, **pars)
+            offset = self.average_outside(data, prefix=self.prefix, **pars)
         pars['%stheta' % self.prefix].set(value=theta, min=theta - np.pi / 4, max=theta + np.pi / 4)
         pars['%samp' % self.prefix].set(value=amp - offset)
         pars['%soffset' % self.prefix].set(value=offset)

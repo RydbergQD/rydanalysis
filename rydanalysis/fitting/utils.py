@@ -6,6 +6,8 @@ Parameters._accessors = dict()
 
 
 def parameters_to_dataset(params, par_prefix="", par_suffix="", dim_name='fit'):
+    if type(params) is not Parameters:
+        params = params.params
     return xr.Dataset({
         par_prefix + p.name + par_suffix: (dim_name, [p.value, p.min, p.max, p.init_value, p.stderr, p.vary])
         for p in params.values()},
@@ -29,6 +31,13 @@ def dataset_to_parameters(ds):
         params.add(var, **par_dict)
     return params
 
+def fit_statistics_to_dataset(fit_result):
+    ds = xr.Dataset({
+        'redchi' : fit_result.redchi,
+        'chisqr' : fit_result.chisqr,
+        'ressum' : fit_result.residual.sum(),
+    })
+    return ds
 
 def register_parameters_accessor(name):
     """

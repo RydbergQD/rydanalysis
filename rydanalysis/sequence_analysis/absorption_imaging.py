@@ -175,6 +175,7 @@ class AbsorptionImaging(ReferenceAnalysis):
         background = raw_data.image_05.where(crop_mask).mean('shot')
         absorption_image = raw_data.image_01.where(crop_mask)
 
+
         return cls(absorption_image, reference_image, background=background, t_exp=t_exp, binning=binning, mask=mask,
                    transition_kwargs=transition_kwargs, pca_kwargs=pca_kwargs)
 
@@ -183,6 +184,12 @@ class AbsorptionImaging(ReferenceAnalysis):
         reference_images = self.optimized_reference_images(self.absorption_images)
         transmission = self.absorption_images / reference_images
         return transmission
+
+    @property
+    def simple_transmission(self):
+        transmission = self.absorption_images / self.reference
+        return transmission
+
 
     @property
     def optical_depth(self):

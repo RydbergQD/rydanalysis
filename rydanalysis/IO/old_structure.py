@@ -89,8 +89,8 @@ class OldStructure(Directory):
     def scope_traces(self):
         scope_traces = self.initialize_traces()
         for tmstp in tqdm(self.tmstps, desc='load scope traces', leave=False):
-            shot = scope_traces.shot.sel(tmstp=tmstp)
-            scope_traces.loc[shot] = self.fast_scope_trace(tmstp)
+            #shot = scope_traces.shot.sel(tmstp=tmstp)
+            scope_traces.loc[{'tmstp': tmstp}] = self.fast_scope_trace(tmstp)
         return scope_traces
 
     @property
