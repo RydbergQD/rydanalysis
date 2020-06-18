@@ -4,6 +4,7 @@ from rydanalysis.IO.exp_sequence import ExpSequence
 from rydanalysis.IO.fits import FitsFile
 from rydanalysis.auxiliary.decorators import cached_property
 
+from pathlib import Path
 import pandas as pd
 from os.path import basename, join, isdir
 from tqdm.notebook import tqdm
@@ -142,6 +143,7 @@ class OldStructure(Directory):
             path = self.path
         data = self.raw_data
         data = data.reset_index('shot')
+        path = Path(path)
         data.to_netcdf(path / 'raw_data.h5')
 
     @cached_property
