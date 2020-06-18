@@ -10,12 +10,17 @@ class GaussianFilter:
         self.pixel_sizes = np.array([self.pixel_size(dim) for dim in image.dims])
 
     def __call__(self, sigma,
+                 dims=None,
                  order=0,
                  output=None,
                  mode='reflect',
                  cval=0.0,
                  truncate=4.0, ):
+        if dims is None:
+            dims = self.image.dims
+
         sigma_in_pixels = sigma / self.pixel_sizes
+        sigma_in_pixels = [sig if dim in dims else 0 for dim, sig in zip(self.image.dims, sigma_in_pixels)]
         result = gaussian_filter(self.image, sigma_in_pixels)
         return self.to_array(result)
 
