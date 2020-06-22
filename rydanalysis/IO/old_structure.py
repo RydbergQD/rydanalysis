@@ -19,8 +19,14 @@ class OldStructure(Directory):
     csv_kwargs = dict(index_col=0, squeeze=True, sep='\t', decimal=',', header=None)
     fast_csv_kwargs = dict(usecols=[1], squeeze=True, sep='\t', decimal=',', header=None)
 
-    def __init__(self, path, handle_key_errors='ignore', sensor_widths=(428, 2191.36)):
+    def __init__(self, path, handle_key_errors='ignore', sensor_widths=(214, 1100)):
         super(OldStructure, self).__init__(path)
+        if (self.path / 'raw_data.h5').is_file():
+            if click.confirm("'raw_data.h5' already exists. Do you want to load from this file (Y) or "
+                             "from the old folder structure (N)?",
+                             default=True):
+                from rydanalysis.IO.exp_sequence import ExpSequence
+                self = ExpSequence(path, handle_key_errors, )
         self.handle_key_errors = handle_key_errors
         self.tmstps = self.get_tmstps()
         self.sensor_widths = sensor_widths
