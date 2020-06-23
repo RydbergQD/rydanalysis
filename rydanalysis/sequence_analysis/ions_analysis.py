@@ -1,5 +1,8 @@
-from scipy.signal import find_peaks
+from scipy.signal import find_peaks, convolve
+from scipy.signal.wavelets import cwt, ricker
 import xarray as xr
+import numpy as np
+from tqdm.notebook import tqdm
 
 
 def _count_ions_reduce(trace, axis=0, height=0.03, width=3, **kwargs):
@@ -71,3 +74,81 @@ def integrate_ions(scope_traces, dim='time', height=0.03):
     if isinstance(scope_traces, xr.DataArray):
         ions.name = 'ionsInt'
     return ions
+
+
+def cwt_xr(trace, wavelet, widths):
+    time_scale = extract_time_scale(trace.time)
+
+    widths_in_pixels = widths / time_scale
+    wavelet_transform = cwt(trace, wavelet, widths_in_pixels)
+    return xr.DataArray(
+        wavelet_transform,
+        coords={'time': trace.time, 'width': widths},
+        dims=['width', 'time']
+    )
+
+
+def pixel_to_time(pixel, time_scale):
+    if pixel:
+        return pixel / time_scale
+
+
+def extract_time_scale(time):
+    time_values = np.sort(time.values)
+    return time_values[1] - time_values[0]
+
+
+def find_peaks_xr(trace, height=None, prominence=None, threshold=None, distance=None, width=None):
+    time_scale = extract_time_scale(trace.time)
+
+    peaks_index, properties = find_peaks(
+        trace,
+        height=height,
+        distance=pixel_to_time(distance, time_scale),
+        width=pixel_to_time(width, time_scale),
+        prominence=prominence,
+        threshold=threshold
+    )
+    return trace[peaks_index]
+
+
+def convolve_wavelet(trace, wavelet, width):
+    length = min(10 * width, len(trace))
+    return convolve(trace, wavelet(length, width), mode='same')
+
+
+def convolve_wavelet_xr(trace, wavelet, width):
+    time_scale = extract_time_scale(trace.time)
+    width_in_pixels = width / time_scale
+
+    wavelet = convolve_wavelet(trace, wavelet, width_in_pixels)
+    return xr.DataArray(
+        wavelet,
+        coords=trace.coords,
+        dims=trace.dims
+    )
+
+
+def find_peaks_wavelet(trace, width=0.8, prominence=0.014):
+    transformed = convolve_wavelet_xr(trace, wavelet=ricker, width=width)
+    return find_peaks_xr(transformed, prominence=prominence)
+
+
+def find_all_peaks_wavelet(traces, width=0.8, prominence=0.014):
+    all_peaks = xr.zeros_like(traces, dtype=np.dtype(bool))
+    for coord, trace in tqdm(traces.groupby('run')):
+        trace = trace.squeeze()
+        trace = trace.squeeze()
+        peaks = find_peaks_wavelet(trace, width=width, prominence=prominence)
+        all_peaks.loc[peaks.coords] = True
+    return all_peaks
+
+
+def find_all_peaks_scipy(traces, width=0.8, height=0.0005, prominence=0.001, distance=2):
+    all_peaks = xr.zeros_like(traces, dtype=np.dtype(bool))
+    for coord, trace in tqdm(traces.groupby('run')):
+        trace = trace.squeeze()
+        trace = trace.squeeze()
+        peaks = find_peaks_xr(trace, width=width, height=height, distance=distance, prominence=prominence)
+        all_peaks.loc[peaks.coords] = True
+    return all_peaks
