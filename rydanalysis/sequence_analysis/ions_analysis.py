@@ -109,8 +109,8 @@ class PeaksAccessor:
         peaks_index, properties = find_peaks(
             self.trace,
             height=height,
-            distance=pixel_to_time(distance, self.time_scale),
-            width=pixel_to_time(width, self.time_scale),
+            distance=self.time_to_pixel(distance),
+            width=self.time_to_pixel(width),
             prominence=prominence,
             threshold=threshold
         )
@@ -130,10 +130,10 @@ class PeaksAccessor:
         transformed = self.convolve_wavelet(wavelet=ricker, width=width)
         return transformed.peaks.find_peaks(prominence=prominence)
 
-
-def pixel_to_time(pixel, time_scale):
-    if pixel:
-        return pixel / time_scale
+    def time_to_pixel(self, time):
+        """Returns a given time in pixels. if time is None, return None"""
+        if time:
+            return time / self.time_scale
 
 
 def convolve_wavelet(trace, wavelet, width):
