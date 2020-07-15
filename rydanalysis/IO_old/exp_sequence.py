@@ -3,8 +3,8 @@ from os.path import join, basename
 import pandas as pd
 import xarray as xr
 
-from rydanalysis.IO.os import Directory
-from rydanalysis.IO.io import GetterWithTimestamp
+from rydanalysis.IO_old.os import Directory
+from rydanalysis.IO_old.io import GetterWithTimestamp
 
 
 class ExpSequence(Directory):

@@ -31,6 +31,7 @@ def dataset_to_parameters(ds):
         params.add(var, **par_dict)
     return params
 
+
 def fit_statistics_to_dataset(fit_result):
     ds = xr.Dataset({
         'redchi' : fit_result.redchi,

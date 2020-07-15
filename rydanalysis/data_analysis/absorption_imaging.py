@@ -4,7 +4,7 @@ from scipy.constants import c, h, e, epsilon_0, hbar
 from scipy.constants import physical_constants
 import xarray as xr
 
-from rydanalysis.auxiliary.decorators import cached_property
+from functools import cached_property
 
 a0 = physical_constants['Bohr radius'][0]
 
@@ -62,7 +62,8 @@ class ReferenceAnalysis(DipoleTransition):
     PIXEL_SIZE = 2.09e-6
 
     def __init__(self, reference_images, background=0, mask=None,
-                 transition_kwargs=None, pca_kwargs=None, binning=2, t_exp=None, saturation_calc_method='flat_imaging'):
+                 transition_kwargs=None, pca_kwargs=None, binning=2,
+                 t_exp=None, saturation_calc_method='flat_imaging'):
         """
 
         Args:
@@ -175,7 +176,6 @@ class AbsorptionImaging(ReferenceAnalysis):
         background = raw_data.image_05.where(crop_mask).mean('shot')
         absorption_image = raw_data.image_01.where(crop_mask)
 
-
         return cls(absorption_image, reference_image, background=background, t_exp=t_exp, binning=binning, mask=mask,
                    transition_kwargs=transition_kwargs, pca_kwargs=pca_kwargs)
 
@@ -189,7 +189,6 @@ class AbsorptionImaging(ReferenceAnalysis):
     def simple_transmission(self):
         transmission = self.absorption_images / self.reference
         return transmission
-
 
     @property
     def optical_depth(self):

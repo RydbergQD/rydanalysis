@@ -2,6 +2,7 @@ import xarray as xr
 from abc import ABCMeta, abstractmethod
 import numpy as np
 
+
 class Mask(metaclass=ABCMeta):
     def __init__(self, image):
         self.image = image

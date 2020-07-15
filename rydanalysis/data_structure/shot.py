@@ -1,8 +1,6 @@
 import xarray as xr
 import pandas as pd
 
-from rydanalysis.IO.io import GetterWithTimestamp
-
 
 @xr.register_dataarray_accessor("ryd_shot")
 class RydbergShotAccessor:

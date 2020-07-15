@@ -3,6 +3,7 @@ import numpy as np
 import xarray as xr
 from tqdm.notebook import tqdm
 
+
 def tile_apply(function=None, wx=200, wy=200, stepx=100, stepy=200, col_name='col', row_name='row', tile_name='tile', stack=True):
     """
     Split array into tiles and evaluate function on each tile. Return 2d xr.DataArray of results

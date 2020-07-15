@@ -102,7 +102,7 @@ class PeaksAccessor:
 
     @property
     def time_scale(self):
-        time_values = np.sort(self.time.values)
+        time_values = np.sort(self.trace.time.values)
         return time_values[1] - time_values[0]
 
     def find_peaks(self, height=None, prominence=None, threshold=None, distance=None, width=None):
