@@ -228,3 +228,34 @@ class DepletionImaging(ReferenceAnalysis):
     @property
     def density(self):
         return (1 + self.saturation_parameter) / self.cross_section * self.optical_depth
+
+
+class InteractionEnhancedImaging(AbsorptionImaging):
+    def __init__(self, absorption_images, reference_images, background=0, mask=None, two_level_mask=None, crop_mask=None, transition_kwargs=None,
+                 pca_kwargs=None, binning=2, t_exp=None, saturation_calc_method='flat_imaging'):
+        super().__init__(reference_images, background, mask, transition_kwargs, pca_kwargs, binning, t_exp,
+                         saturation_calc_method)
+
+        self.absorption_images = absorption_images - background
+        self.two_level_mask = two_level_mask
+        self.crop_mask = crop_mask
+
+
+    @cached_property
+    def pca_two_level(self):
+        return self.absorption_images.pca_two_level(**self.pca_kwargs)
+
+    @property
+    def optimized_two_level_reference(self, images):
+        """
+        Build two level reference images from pca.
+        """
+        edge_mask = np.logical_not(self.two_level_mask)
+        return self.pca_two_level.find_references(images.where(edge_mask))
+
+    @property
+    def transmission_impurity(self):
+        reference_images = self.optimized_reference_images(self.absorption_images)
+        two_level_reference = self.optimized_two_level_reference(self.transmission())
+        transmission = self.absorption_images / reference_images - two_level_reference / reference_images
+        return transmission

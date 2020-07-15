@@ -173,6 +173,7 @@ class PCAAccessor:
         return pca_.find_references(images, mask)
 
 
+
 class PCAXarray(decomposition.PCA):
     def __init__(self, n_components=None, copy=True, whiten=False,
                  svd_solver='auto', tol=0.0, iterated_power='auto',
