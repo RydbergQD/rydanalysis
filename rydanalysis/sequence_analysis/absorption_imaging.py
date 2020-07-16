@@ -209,8 +209,9 @@ class InteractionEnhancedImaging(ReferenceAnalysis):
         super().__init__(reference_images, background, mask, transition_kwargs, pca_kwargs, binning, t_exp,
                          saturation_calc_method)
         self.absorption_images = absorption_images - self.background
+        self.absorption_reference = absorption_reference - self.background
         self.roi_mask = roi_mask
-        self.absorption_reference = absorption_reference
+
     @classmethod
     def from_raw_data(cls, raw_data: xr.Dataset, mask=None, crop_mask=True,  roi_mask=None, transition_kwargs=None, pca_kwargs=None, absorption_ref_kwargs=None):
         t_exp = raw_data.tCAM * 1e-3
@@ -233,7 +234,7 @@ class InteractionEnhancedImaging(ReferenceAnalysis):
         Build absorption reference images from pca.
         """
         edge_mask = np.logical_not(self.roi_mask)
-        return self.pca_two_level.find_references(images.where(self.roi_mask))
+        return self.pca_two_level.find_references(images.where(edge_mask))
 
 
     @property
