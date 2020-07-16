@@ -112,12 +112,14 @@ class ReferenceAnalysis(DipoleTransition):
     def pca(self):
         return self.reference.pca(**self.pca_kwargs)
 
+
     def optimized_reference_images(self, images):
         """
         Build reference images from pca.
         """
         edge_mask = np.logical_not(self.mask)
         return self.pca.find_references(images.where(edge_mask))
+
 
     @property
     def pixel_size(self):
@@ -200,6 +202,48 @@ class AbsorptionImaging(ReferenceAnalysis):
         return (1 + self.saturation_parameter) / self.cross_section * self.optical_depth
 
 
+
+class InteractionEnhancedImaging(ReferenceAnalysis):
+    def __init__(self,absorption_reference, absorption_images, reference_images, background=0, mask=None, roi_mask=None, crop_mask=None,
+                 transition_kwargs=None, pca_kwargs=None, binning=2, t_exp=None, saturation_calc_method='flat_imaging'):
+        super().__init__(reference_images, background, mask, transition_kwargs, pca_kwargs, binning, t_exp,
+                         saturation_calc_method)
+        self.absorption_images = absorption_images - self.background
+        self.roi_mask = roi_mask
+        self.absorption_reference = absorption_reference
+    @classmethod
+    def from_raw_data(cls, raw_data: xr.Dataset, mask=None, crop_mask=True,  roi_mask=None, transition_kwargs=None, pca_kwargs=None, absorption_ref_kwargs=None):
+        t_exp = raw_data.tCAM * 1e-3
+        binning = 100 / raw_data.x.size
+        reference_image = raw_data.image_03.where(crop_mask)
+        background = raw_data.image_05.where(crop_mask).mean('shot')
+        absorption_image = raw_data.image_01.where(crop_mask)
+        absorption_reference = raw_data.image_01.where(crop_mask).sel(**absorption_ref_kwargs)
+
+        return cls(absorption_reference, absorption_image, reference_image, background=background, t_exp=t_exp, binning=binning, mask=mask,
+                   roi_mask=roi_mask, transition_kwargs=transition_kwargs, pca_kwargs=pca_kwargs)
+
+
+    @cached_property
+    def pca_two_level(self):
+        return self.absorption_reference.pca(**self.pca_kwargs)
+
+    def optimized_absorption_reference(self, images):
+        """
+        Build absorption reference images from pca.
+        """
+        edge_mask = np.logical_not(self.roi_mask)
+        return self.pca_two_level.find_references(images.where(self.roi_mask))
+
+
+    @property
+    def transmission_impurity(self):
+        two_level_reference = self.optimized_absorption_reference(self.absorption_images)
+        transmission_impurity = self.absorption_images / two_level_reference
+        return transmission_impurity
+
+
+
 class DepletionImaging(ReferenceAnalysis):
     def __init__(self, with_rydberg_images, no_rydberg_images, only_light_images, background=0, mask=None,
                  transition_kwargs=None, pca_kwargs=None, binning=2, t_exp=None,
@@ -230,32 +274,3 @@ class DepletionImaging(ReferenceAnalysis):
         return (1 + self.saturation_parameter) / self.cross_section * self.optical_depth
 
 
-class InteractionEnhancedImaging(AbsorptionImaging):
-    def __init__(self, absorption_images, reference_images, background=0, mask=None, two_level_mask=None, crop_mask=None, transition_kwargs=None,
-                 pca_kwargs=None, binning=2, t_exp=None, saturation_calc_method='flat_imaging'):
-        super().__init__(reference_images, background, mask, transition_kwargs, pca_kwargs, binning, t_exp,
-                         saturation_calc_method)
-
-        self.absorption_images = absorption_images - background
-        self.two_level_mask = two_level_mask
-        self.crop_mask = crop_mask
-
-
-    @cached_property
-    def pca_two_level(self):
-        return self.absorption_images.pca_two_level(**self.pca_kwargs)
-
-    @property
-    def optimized_two_level_reference(self, images):
-        """
-        Build two level reference images from pca.
-        """
-        edge_mask = np.logical_not(self.two_level_mask)
-        return self.pca_two_level.find_references(images.where(edge_mask))
-
-    @property
-    def transmission_impurity(self):
-        reference_images = self.optimized_reference_images(self.absorption_images)
-        two_level_reference = self.optimized_two_level_reference(self.transmission())
-        transmission = self.absorption_images / reference_images - two_level_reference / reference_images
-        return transmission
