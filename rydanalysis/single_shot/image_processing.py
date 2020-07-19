@@ -169,7 +169,6 @@ class PCAAccessor:
                         svd_solver='auto', tol=0.0, iterated_power='auto',
                         random_state=None):
         pca_ = self(n_components, copy, whiten, svd_solver, tol, iterated_power, random_state)
-
         return pca_.find_references(images, mask)
 
 
@@ -183,7 +182,7 @@ class PCAXarray(decomposition.PCA):
                          random_state)
         self._dims = ['shot', 'image_coords']
         self._coords = None
-
+        print(n_components)
     @staticmethod
     def stack(images):
         return images.stack({'image_coords': images.dims[1:]}).dropna('image_coords')

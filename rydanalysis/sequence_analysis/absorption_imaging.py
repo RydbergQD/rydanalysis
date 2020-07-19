@@ -204,7 +204,7 @@ class AbsorptionImaging(ReferenceAnalysis):
 
 
 class InteractionEnhancedImaging(ReferenceAnalysis):
-    def __init__(self,absorption_reference, absorption_images, reference_images, background=0, mask=None, roi_mask=None, crop_mask=None,
+    def __init__(self, absorption_reference, absorption_images, reference_images, background=0, mask=None, roi_mask=None, crop_mask=None,
                  transition_kwargs=None, pca_kwargs=None, binning=2, t_exp=None, saturation_calc_method='flat_imaging'):
         super().__init__(reference_images, background, mask, transition_kwargs, pca_kwargs, binning, t_exp,
                          saturation_calc_method)
@@ -225,23 +225,37 @@ class InteractionEnhancedImaging(ReferenceAnalysis):
                    roi_mask=roi_mask, transition_kwargs=transition_kwargs, pca_kwargs=pca_kwargs)
 
 
-    @cached_property
-    def pca_two_level(self):
-        return self.absorption_reference.pca(**self.pca_kwargs)
+    @property
+    def transmission_reference(self):
+        transmission_reference = self.absorption_reference / self.optimized_reference_images(self.absorption_reference)
+        return transmission_reference
 
-    def optimized_absorption_reference(self, images):
+    @property
+    def transmission(self):
+        transmission = self.absorption_images / self.optimized_reference_images(self.absorption_images)
+        return transmission
+
+    @cached_property
+    def pca_transmission(self):
+        return self.transmission_reference.pca(**self.pca_kwargs)
+
+    def optimized_transmission_reference(self, images):
         """
         Build absorption reference images from pca.
         """
         edge_mask = np.logical_not(self.roi_mask)
-        return self.pca_two_level.find_references(images.where(edge_mask))
-
+        return self.pca_transmission.find_references(images.where(edge_mask))
 
     @property
-    def transmission_impurity(self):
-        two_level_reference = self.optimized_absorption_reference(self.absorption_images)
-        transmission_impurity = self.absorption_images / two_level_reference
-        return transmission_impurity
+    def delta_transmission(self):
+        delta_transmission = self.optimized_transmission_reference(self.transmission) - self.transmission
+        return delta_transmission
+
+    @property
+    def delta_optical_depth(self):
+        delta_od = np.log(self.optimized_transmission_reference(self.transmission)) - np.log(self.transmission)
+        return delta_od
+
 
 
 
