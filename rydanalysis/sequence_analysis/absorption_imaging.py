@@ -230,11 +230,6 @@ class InteractionEnhancedImaging(ReferenceAnalysis):
         transmission_reference = self.absorption_reference / self.optimized_reference_images(self.absorption_reference)
         return transmission_reference
 
-    @property
-    def transmission(self):
-        transmission = self.absorption_images / self.optimized_reference_images(self.absorption_images)
-        return transmission
-
     @cached_property
     def pca_transmission(self):
         return self.transmission_reference.pca(**self.pca_kwargs)
@@ -245,6 +240,11 @@ class InteractionEnhancedImaging(ReferenceAnalysis):
         """
         edge_mask = np.logical_not(self.roi_mask)
         return self.pca_transmission.find_references(images.where(edge_mask))
+
+    @property
+    def transmission(self):
+        transmission = self.absorption_images / self.optimized_reference_images(self.absorption_images)
+        return transmission
 
     @property
     def delta_transmission(self):
