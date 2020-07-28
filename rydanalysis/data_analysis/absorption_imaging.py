@@ -4,7 +4,7 @@ from scipy.constants import c, h, e, epsilon_0, hbar
 from scipy.constants import physical_constants
 import xarray as xr
 
-from functools import cached_property
+from rydanalysis.auxiliary.decorators import cached_property
 
 a0 = physical_constants['Bohr radius'][0]
 

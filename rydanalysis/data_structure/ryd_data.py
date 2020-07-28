@@ -1,7 +1,7 @@
 import xarray as xr
 import pandas as pd
 from typing import Union
-from functools import cached_property
+from rydanalysis.auxiliary.decorators import cached_property
 
 
 def load_ryd_data(path):

@@ -15,35 +15,36 @@ class OldStructure:
 
     def __init__(self, path, handle_key_errors='ignore', sensor_widths=(214, 1100)):
         self.path = Path(path)
+        self.is_dir()
         self.sensor_widths = sensor_widths
         self.handle_key_errors = handle_key_errors
 
-        try:
-            self.scope_trace_index = self._get_scope_traces_index()
-            self.has_traces = True
-        except AttributeError:
-            self.has_traces = False
+        self.tmstps = []
+        self.parameters = pd.DataFrame()
+        self.images = None
+        self.traces = None
 
-        try:
-            self.n_images, self.image_coords_x, self.image_coords_y = self._get_image_coords()
-            self.has_images = True
-        except AttributeError:
-            self.has_images = False
+        self.update()
 
-        self.raw_data = self.get_raw_data(self.tmstps)
+    def is_dir(self):
+        if not self.path.is_dir():
+            raise AttributeError("The given path is no directory. Check the path!")
+        return True
 
-    @property
-    def tmstps(self):
+    def update_tmstps(self):
         variables_path = self.path / 'Variables'
+        new_tmstps = [tmstp for tmstp in self.iter_tmstps(variables_path, self.filename_pattern + '.txt')
+                      if tmstp not in self.tmstps]
+        self.tmstps.extend(new_tmstps)
+        return new_tmstps
 
-        tmstps = []
-        for path in variables_path.glob(self.filename_pattern + '.txt'):
+    def iter_tmstps(self, path: Path, pattern: str):
+        for sub_path in path.glob(pattern):
             try:
-                tmstps.append(pd.to_datetime(path.name, format=self.strftime + '.txt'))
-            except:
-                print("couldn't read {0}. Skipping this file...".format(path.name))
-                pass
-        return tmstps
+                tmstp = pd.to_datetime(sub_path.name, format=self.strftime + '.txt')
+                yield tmstp
+            except ValueError:
+                print("couldn't read {0}. Skipping this file...".format(sub_path.name))
 
     def get_single_parameters(self, tmstp):
         parameter_path = self.path / 'Variables' / tmstp.strftime(self.strftime + '.txt')
@@ -83,111 +84,156 @@ class OldStructure:
         del old_la['Index']
         return old_la
 
+    def iter_fits_files(self, tmstps):
+        fits_path = self.path / 'FITS Files'
+        for n, tmstp in enumerate(tmstps):
+            file = fits_path / tmstp.strftime(self.strftime + '_full.fts')
+            image = self._fits_to_image(file)
+            yield tmstp, image
+        # for file in images_path.glob(self.filename_pattern + '_full.fts'):
+
+    @staticmethod
+    def _fits_to_image(file):
+        if file.is_file():
+            with astropy.io.fits.open(file) as fits_file:
+                return fits_file[0].data
+
     def _get_image_coords(self):
-        images_path = self.path / 'FITS Files'
-        for file in images_path.glob(self.filename_pattern + '_full.fts'):
-            if file.is_file():
-                with astropy.io.fits.open(file) as fits_file:
-                    image = fits_file[0].data
+        if self.images:
+            return self.images.data_vars.keys(), self.images.x, self.images.y,
 
-                n_images, n_pixel_x, n_pixel_y = image.shape
+        for tmstp, image in self.iter_fits_files(self.tmstps):
+            n_images, n_pixel_x, n_pixel_y = image.shape
 
-                sensor_width_x, sensor_width_y = self.sensor_widths
-                sensor_width_x *= 1 - 1 / n_pixel_x
-                sensor_width_y *= 1 - 1 / n_pixel_y
-                # pixel_length = sensor_width / n_pixel
-                # sensor_width -= pixel_length
-                x = np.linspace(-sensor_width_x / 2, sensor_width_x / 2, n_pixel_x)
-                y = np.linspace(-sensor_width_y / 2, sensor_width_y / 2, n_pixel_y)
+            sensor_width_x, sensor_width_y = self.sensor_widths
+            sensor_width_x *= 1 - 1 / n_pixel_x
+            sensor_width_y *= 1 - 1 / n_pixel_y
 
-                return n_images, x, y
-        raise AttributeError('No images detected')
+            x = np.linspace(-sensor_width_x / 2, sensor_width_x / 2, n_pixel_x)
+            y = np.linspace(-sensor_width_y / 2, sensor_width_y / 2, n_pixel_y)
+            image_names = ['image_' + str(i).zfill(2) for i in range(n_images)]
+
+            return image_names, x, y
+        raise AttributeError('No images found')
 
     def initialize_images(self, tmstps):
-        x = self.image_coords_x
-        y = self.image_coords_y
-        n_images = self.n_images
+        try:
+            image_names, x, y = self._get_image_coords()
+        except AttributeError:
+            return None
         shape = (len(tmstps), len(x), len(y))
         empty_image = np.full(shape, np.NaN, dtype=np.float32)
 
         images = xr.Dataset(
-            {
-                'image_' + str(i).zfill(2): (['shot', 'x', 'y'], empty_image.copy()) for i in range(n_images)
-            },
-            coords={
-                'shot': self.get_shot_multi_index(tmstps),
-                'x': x,
-                'y': y}
+            {name: (['tmstp', 'x', 'y'], empty_image.copy()) for name in image_names},
+            coords={'tmstp': tmstps, 'x': x, 'y': y}
         )
-
         return images
 
     def get_images(self, tmstps):
-        fits_path = self.path / 'FITS Files'
         images = self.initialize_images(tmstps)
-        for n, tmstp in enumerate(tqdm(tmstps, desc='load images', leave=False)):
-            file = fits_path / tmstp.strftime(self.strftime + '_full.fts')
-            if file.is_file():
-                with astropy.io.fits.open(file) as fits_file:
-                    image_list = fits_file[0].data
-                    for i, image in enumerate(image_list):
-                        images['image_' + str(i).zfill(2)].loc[{'tmstp': tmstp}] = image
+        if not images:
+            return None
+        for tmstp, image_list in self.iter_fits_files(tmstps):
+            for i, image in enumerate(image_list):
+                name = 'image_' + str(i).zfill(2)
+                images[name].loc[{'tmstp': tmstp}] = image
         return images
 
+    def _iter_traces(self, tmstps, method='fast'):
+        traces_path = self.path / 'Scope Traces'
+        for tmstp in tmstps:
+            file = traces_path / tmstp.strftime(self.strftime + '_C1.csv')
+            if file.is_file():
+                yield tmstp, self.read_scope_trace(file, method)
+
+    def read_scope_trace(self, file, method):
+        if method == 'fast':
+            scope_trace = pd.read_csv(file, **self.fast_csv_kwargs)
+            if scope_trace.shape[0] > 1:
+                return scope_trace.values
+        else:
+            return pd.read_csv(file, **self.csv_kwargs)
+
     def _get_scope_traces_index(self):
-        scope_traces_path = self.path / 'Scope Traces'
-        for path in scope_traces_path.glob(self.filename_pattern + '_C1.csv'):
-            trace = pd.read_csv(path, **self.csv_kwargs)
+        if self.traces:
+            return self.traces['time']
+
+        for tmstp, trace in self._iter_traces(self.tmstps, method='slow'):
             if trace is not None:
                 return trace.index
-        raise AttributeError("No scope_traces are found.")
 
     def initialize_traces(self, tmstps):
-        time = self.scope_trace_index
+        time = self._get_scope_traces_index()
+        if not time:
+            return None
         shape = (len(tmstps), time.size)
 
         scope_traces = xr.DataArray(
             np.full(shape, np.NaN, dtype=np.float32),
-            dims=['shot', 'time'],
-            coords={'shot': self.get_shot_multi_index(tmstps), 'time': time.values}
+            dims=['tmstp', 'time'],
+            coords={'tmstp': tmstps, 'time': time.values}
         )
         return scope_traces
 
-    def get_scope_trace(self, tmstp):
-        file = self.path / 'Scope Traces' / tmstp.strftime(self.strftime + '_C1.csv')
-        if file.is_file():
-            scope_trace = pd.read_csv(file, **self.fast_csv_kwargs)
-            if scope_trace.shape[0] > 1:
-                return scope_trace.values
-
     def get_scope_traces(self, tmstps):
         scope_traces = self.initialize_traces(tmstps)
-        for tmstp in tqdm(tmstps, desc='load scope traces', leave=False):
-            scope_traces.loc[{'tmstp': tmstp}] = self.get_scope_trace(tmstp)
+        if not scope_traces:
+            return None
+        for tmstp, trace in tqdm(self._iter_traces(tmstps, 'fast'), desc='load scope traces', leave=False):
+            scope_traces.loc[{'tmstp': tmstp}] = trace
         return scope_traces
 
-    def get_raw_data(self, tmstps):
+    def update_images(self, images):
+        if self.images:
+            self.images = xr.concat([self.images, images], dim='tmstp')
+        else:
+            self.images = images
+
+    def update_traces(self, traces):
+        if self.traces:
+            self.traces = xr.concat([self.traces, traces], dim='tmstp')
+        else:
+            self.traces = traces
+
+    def update(self):
+        tmstps = self.update_tmstps()
+        if not tmstps:
+            return
+
+        images = self.get_images(tmstps)
+        self.update_images(images)
+
+        traces = self.get_scope_traces(tmstps)
+        self.update_traces(traces)
+
+        parameters = self.get_parameters(tmstps)
+        self.parameters = pd.concat([self.parameters, parameters], axis=0)
+
+    def get_raw_data(self):
         raw_data = xr.Dataset()
-        if self.has_images:
-            images = self.get_images(tmstps)
-            raw_data = xr.merge([raw_data, images])
-        if self.has_traces:
-            scope_traces = self.get_scope_traces(tmstps)
-            raw_data['scope_traces'] = scope_traces
+        if self.images:
+            raw_data = xr.merge([raw_data, self.images])
+        if self.traces:
+            raw_data['scope_traces'] = self.traces
         return raw_data
 
-    def update_raw_data(self):
-        tmstps = set(self.tmstps)
-        tmstps.difference_update(self.raw_data.tmstp.values)
-        new_raw_data = self.get_raw_data(tmstps)
-        self.raw_data = xr.concat([self.raw_data, new_raw_data], dim='shot')
+    @property
+    def shot_multiindex(self):
+        _parameters = self.parameters
+        variables = _parameters.loc[:, _parameters.nunique() > 1]
+        return pd.MultiIndex.from_frame(variables.reset_index())
+
+    @property
+    def unique_parameters(self):
+        _parameters = self.parameters
+        parameters = _parameters.iloc[0].loc[_parameters.nunique() == 1]
+        return parameters
 
     @property
     def data(self):
-        raw_data = self.raw_data
-        _parameters = raw_data.shot.reset_index('shot').to_dataframe().drop('shot', axis=1)
-        variables = _parameters.loc[:, _parameters.nunique() > 1]
-        parameters = _parameters.loc[0, _parameters.nunique() == 1]
-        raw_data['shot'] = pd.MultiIndex.from_frame(variables)
-        raw_data.attrs.update(parameters)
+        raw_data = self.get_raw_data()
+        raw_data = raw_data.reindex(tmstp=self.shot_multiindex)
+        raw_data = raw_data.rename(tmstp='shot')
+        raw_data.attrs.update(self.unique_parameters)
         return raw_data
