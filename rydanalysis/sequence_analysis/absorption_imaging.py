@@ -247,15 +247,14 @@ class InteractionEnhancedImaging(ReferenceAnalysis):
         return self.pca_transmission.find_references(images.where(edge_mask))
 
     @property
-    def delta_transmission(self):
-        delta_transmission = self.optimized_transmission_reference(self.transmission) - self.transmission
-        return delta_transmission
+    def transmission_ratio(self):
+        transmission_ratio = self.transmission / self.optimized_transmission_reference(self.transmission)
+        return transmission_ratio
 
     @property
     def delta_optical_depth(self):
-        delta_od = np.log(self.optimized_transmission_reference(self.transmission)) - np.log(self.transmission)
-        return delta_od
-
+        delta_optical_depth = -np.log(self.transmission_ratio)
+        return delta_optical_depth
 
 
 
