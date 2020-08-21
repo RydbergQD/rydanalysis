@@ -182,7 +182,6 @@ class PCAXarray(decomposition.PCA):
                          random_state)
         self._dims = ['shot', 'image_coords']
         self._coords = None
-        print(n_components)
     @staticmethod
     def stack(images):
         return images.stack({'image_coords': images.dims[1:]}).dropna('image_coords')
