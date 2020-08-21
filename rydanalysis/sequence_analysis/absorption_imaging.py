@@ -118,7 +118,7 @@ class ReferenceAnalysis(DipoleTransition):
         Build reference images from pca.
         """
         edge_mask = np.logical_not(self.mask)
-        return self.pca.find_references(images.where(edge_mask))
+        return self.pca.find_references(images.where(self.mask))
 
 
     @property
@@ -205,15 +205,23 @@ class AbsorptionImaging(ReferenceAnalysis):
 
 class InteractionEnhancedImaging(ReferenceAnalysis):
     def __init__(self, absorption_reference, absorption_images, reference_images, background=0, mask=None, roi_mask=None, crop_mask=None,
-                 transition_kwargs=None, pca_kwargs=None, binning=2, t_exp=None, saturation_calc_method='flat_imaging'):
+                 transition_kwargs=None, pca_kwargs=None, pca_density_kwargs=None, binning=4, t_exp=None, saturation_calc_method='flat_imaging'):
         super().__init__(reference_images, background, mask, transition_kwargs, pca_kwargs, binning, t_exp,
                          saturation_calc_method)
         self.absorption_images = absorption_images - self.background
         self.absorption_reference = absorption_reference - self.background
         self.roi_mask = roi_mask
 
+        if pca_density_kwargs is None:
+            pca_density_kwargs = {}
+        if 'n_components' not in pca_density_kwargs.keys():
+            pca_density_kwargs.update(n_components=30)
+        self.pca_density_kwargs = pca_density_kwargs
+
+
+
     @classmethod
-    def from_raw_data(cls, raw_data: xr.Dataset, mask=None, crop_mask=True,  roi_mask=None, transition_kwargs=None, pca_kwargs=None, absorption_ref_kwargs=None):
+    def from_raw_data(cls, raw_data: xr.Dataset, mask=None, crop_mask=True,  roi_mask=None, transition_kwargs=None, pca_kwargs=None, pca_density_kwargs=None, absorption_ref_kwargs=None):
         t_exp = raw_data.tCAM * 1e-3
         binning = 100 / raw_data.x.size
         reference_image = raw_data.image_03.where(crop_mask)
@@ -222,7 +230,7 @@ class InteractionEnhancedImaging(ReferenceAnalysis):
         absorption_reference = raw_data.image_01.where(crop_mask).sel(**absorption_ref_kwargs)
 
         return cls(absorption_reference, absorption_image, reference_image, background=background, t_exp=t_exp, binning=binning, mask=mask,
-                   roi_mask=roi_mask, transition_kwargs=transition_kwargs, pca_kwargs=pca_kwargs)
+                   roi_mask=roi_mask, transition_kwargs=transition_kwargs, pca_kwargs=pca_kwargs, pca_density_kwargs=pca_density_kwargs)
 
 
     @property
@@ -237,14 +245,14 @@ class InteractionEnhancedImaging(ReferenceAnalysis):
 
     @cached_property
     def pca_transmission(self):
-        return self.transmission_reference.pca(**self.pca_kwargs)
+        return self.transmission_reference.pca(**self.pca_density_kwargs)
 
     def optimized_transmission_reference(self, images):
         """
         Build absorption reference images from pca.
         """
         edge_mask = np.logical_not(self.roi_mask)
-        return self.pca_transmission.find_references(images.where(edge_mask))
+        return self.pca_transmission.find_references(images.where(self.roi_mask))
 
     @property
     def transmission_ratio(self):
