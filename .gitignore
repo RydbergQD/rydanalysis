@@ -1,5 +1,6 @@
 # pycharm
 *.iml
+.idea/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -23,6 +24,7 @@ lib64/
 parts/
 sdist/
 var/
+dask-worker-space/
 *.egg-info/
 .installed.cfg
 *.egg
