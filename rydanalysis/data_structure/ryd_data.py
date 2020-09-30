@@ -1,5 +1,6 @@
 import xarray as xr
 import pandas as pd
+import numpy as np
 from typing import Union
 from rydanalysis.auxiliary.decorators import cached_property
 
@@ -25,7 +26,7 @@ class RydData:
     @property
     def variables(self):
         coords = self._obj.shot.reset_index('shot').coords
-        variables = {variable: coords[variable] for variable in coords if variable is not 'shot'}
+        variables = {variable: coords[variable] for variable in coords if variable != 'shot'}
         df = pd.DataFrame(variables)
         df.set_index('tmstp', inplace=True)
         return df
@@ -56,6 +57,17 @@ class RydData:
             return True
         else:
             return False
+
+    @property
+    def date(self):
+        tmstp = self._obj.tmstp.values[0]
+        time_string = np.datetime_as_string([tmstp], unit='D')
+        return time_string[0].replace('-', '_')
+
+    def choose_shot(self, tmstp):
+        shot = self._obj.sel(tmstp=tmstp)
+        shot.attrs.update(tmstp=tmstp)
+        return shot.squeeze(drop=True)
 
 
 @xr.register_dataarray_accessor("ryd_traces")

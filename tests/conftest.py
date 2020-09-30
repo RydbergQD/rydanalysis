@@ -2,6 +2,7 @@ import pytest
 from pathlib import Path
 
 from rydanalysis import OldStructure
+import  rydanalysis as ra
 
 
 class OldStructureOnly10(OldStructure):
@@ -39,6 +40,20 @@ def update_few():
     path = Path.cwd()
     only_images_path = path.parent / "samples" / "old_structure" / "2020_07_06" / "05_SNR_EIT_AT_pABSx0-8_pBlue3-6"
     return OldStructureOnly10(only_images_path)
+
+
+@pytest.fixture(scope="session")
+def only_traces():
+    path = Path.cwd()
+    only_traces_path = path.parent / "samples" / "old_structure" / "2019_11_13" / "12_tEXC"
+    return OldStructure(only_traces_path)
+
+
+@pytest.fixture()
+def image_data():
+    path = Path.cwd()
+    data_path = path.parent / "samples" / "new_structure" / "2020_07_06" / "05_SNR_EIT_AT_pABSx0-8_pBlue3-6"
+    return ra.load_ryd_data(data_path / "raw_data.h5")
 
 
 

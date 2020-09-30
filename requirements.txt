@@ -1,5 +1,4 @@
 scipy
-arc
 scikit-image
 click
 xarray
@@ -15,3 +14,5 @@ lmfit
 pytables
 ARC-Alkali-Rydberg-Calculator
 netcdf4
+streamlit
+plotly

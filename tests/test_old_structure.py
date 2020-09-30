@@ -27,3 +27,8 @@ def test_update_few_tmstps(update_few):
 def test_only_images(only_images):
     data = only_images.data
     assert data.shot.name == 'shot'
+
+
+def test_only_traces(only_traces):
+    data = only_traces.data
+    assert data.shot.name == 'shot'

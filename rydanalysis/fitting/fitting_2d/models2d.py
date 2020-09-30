@@ -69,7 +69,7 @@ class Gaussian2D(Model2d):
         mu = m_central / m_central[0, 0]
         cov = np.array([[mu[2, 0], mu[1, 1]], [mu[1, 1], mu[0, 2]]])
 
-        sig_x, sig_y = np.sqrt(np.linalg.eigvals(cov))
+        sig_x, sig_y = np.sqrt(np.abs(np.linalg.eigvals(cov)))
         theta = 1 / 2 * np.arctan(2 * m_central[1, 1] / (m_central[2, 0] - m_central[0, 2]))
         return cen_x, cen_y, sig_x, sig_y, theta
 
@@ -93,7 +93,7 @@ class Gaussian2D(Model2d):
         sig_y = kwargs['sig_y']
         mask = ((data.x - cen_x) / sig_x) ** 2 + ((data.y - cen_y) / (sig_y / 2)) ** 2 <= 0.5 ** 2
         if not bool(mask.any()):
-            return float(data.sel(x=cen_y, y=cen_y, method='nearest'))
+            return float(data.sel(x=cen_y.value, y=cen_y.value, method='nearest'))
         return float(data.where(mask).mean())
 
     @staticmethod

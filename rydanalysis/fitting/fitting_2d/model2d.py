@@ -7,6 +7,8 @@ import xarray as xr
 import inspect
 import numpy as np
 import operator
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 
 def get_reducer(option):
@@ -289,7 +291,7 @@ class Model2d(Model):
             params.
         Returns
         -------
-        ModelResult
+        ModelResult2d
         Examples
         --------
         Take `t` to be the independent variable and data to be the curve we
@@ -391,6 +393,7 @@ class Model2d(Model):
                 data = data.where(mask, drop=True)
             if weights is not None:
                 weights = weights.where(mask, drop=True)
+            mask = None
 
         # If independent_vars and data are alignable (pandas), align them,
         # and apply the mask from above if there is one.
@@ -559,15 +562,7 @@ class ModelResult2d(ModelResult):
         if not isinstance(ax, plt.Axes):
             ax = plt.gca(**ax_kws)
 
-        xy_array_dense = {}
-        for i, independent_var in enumerate(independent_vars):
-            xy_array = self.userkws[independent_var]
-
-            # make a dense array for x-axis if data is not dense
-            if numpoints is not None and len(self.data) < numpoints[i]:
-                xy_array_dense[independent_var] = np.linspace(min(xy_array), max(xy_array), numpoints)
-            else:
-                xy_array_dense[independent_var] = xy_array
+        xy_array_dense = self.build_dense_xarray(numpoints)
 
         if show_init:
             init_data = reduce_complex(self.model.eval(self.init_params, **xy_array_dense))
@@ -590,6 +585,67 @@ class ModelResult2d(ModelResult):
         #    ax.set_ylabel(ylabel)
         # ax.legend(loc='best')
         return ax
+
+    def build_dense_xarray(self, numpoints=None):
+        independent_vars = self.model.independent_vars[:2]
+
+        xy_array_dense = {}
+        for i, independent_var in enumerate(independent_vars):
+            xy_array = self.userkws[independent_var]
+
+            # make a dense array for x-axis if data is not dense
+            if numpoints is not None and len(self.data) < numpoints[i]:
+                xy_array_dense[independent_var] = np.linspace(min(xy_array), max(xy_array), numpoints)
+            else:
+                xy_array_dense[independent_var] = xy_array
+        return xy_array_dense
+
+    def plotly_fit(self, fig: go.Figure, row: int = 1, col: int = 1,
+                   numpoints=None,
+                   show_init=False, init_color='grey', initfmt='dash', init_width=3, init_kws=None,
+                   fit_color='black', fitfmt='solid', fit_width=3, fit_kws=None,
+                   data_kws=None,
+                   parse_complex='abs', weighted=True, heatmap_args=None):
+        # The function reduce_complex will convert complex vectors into real vectors
+        if fit_kws is None:
+            fit_kws = {}
+        if data_kws is None:
+            data_kws = {}
+        if init_kws is None:
+            init_kws = {}
+        if heatmap_args is None:
+            heatmap_args = {}
+
+        reduce_complex = get_reducer(parse_complex)
+
+        xy_array_dense = self.build_dense_xarray(numpoints)
+
+        if show_init:
+            init_data = reduce_complex(self.model.eval(self.init_params, **xy_array_dense))
+            init_data.plotly_image.add_contour(
+                fig=fig, row=row, col=col, contours_coloring='lines',
+                line=dict(dash=initfmt, width=init_width, color=init_color),
+                **init_kws
+            )
+
+        data = reduce_complex(self.data)
+        data.plotly_image.add_trace(fig=fig, row=row, col=col, name='data', **data_kws)
+
+        best_fit = reduce_complex(self.model.eval(self.params, **xy_array_dense))
+
+        best_fit.plotly_image.add_contour(
+            fig=fig, row=row, col=col, contours_coloring='lines',
+            line=dict(dash=fitfmt, width=fit_width, color=fit_color),
+            **fit_kws
+        )
+        return fig
+
+    def plotly_plot(self, ):
+        fig = make_subplots(rows=2, cols=1, shared_xaxes=True, subplot_titles=('residuals', 'fit'),
+                            row_heights=[0.3, 0.7])
+        self.plotly_residuals(fig, row=1, col=1)
+        self.plot_fit(fig, row=2, col=1)
+        fig.update_yaxes(yaxis='y', row=2, col=1)
 
     @_ensureMatplotlib
     def plot_residuals(self, ax=None, datafmt='o', yerr=None, data_kws=None,
@@ -671,6 +727,18 @@ class ModelResult2d(ModelResult):
         ax.set_title(self.model.name)
         # ax.legend(loc='best')
         return ax
+
+    def plotly_residuals(self, fig: go.Figure, row: int = 1, col: int = 1,
+                         parse_complex='abs', weighted=True, heatmap_args=None):
+        if heatmap_args is None:
+            heatmap_args = {}
+        reduce_complex = get_reducer(parse_complex)
+        residuals = reduce_complex(self.eval()) - reduce_complex(self.data)
+        if weighted and self.weights is not None:
+            residuals *= abs(self.weights)
+
+        residuals.name = 'residuals'
+        residuals.plotly_image.add_trace(row=row, col=col, **heatmap_args)
 
     @_ensureMatplotlib
     def plot(self, datafmt='o', fitfmt='-', initfmt='--', xlabel=None,

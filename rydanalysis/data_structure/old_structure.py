@@ -1,21 +1,26 @@
+from distutils.dir_util import copy_tree
+
 import pandas as pd
 from tqdm.notebook import tqdm
 import xarray as xr
 import numpy as np
 from pathlib import Path
 import astropy.io.fits
+import streamlit as st
+import datetime
 
 
 class OldStructure:
     raw_data: xr.Dataset
     strftime = '%Y_%m_%d_%H.%M.%S'
+    date_strftime = '%Y_%m_%d'
     filename_pattern = '????_??_??_??.??.??'
     csv_kwargs = dict(index_col=0, squeeze=True, sep='\t', decimal=',', header=None)
     fast_csv_kwargs = dict(usecols=[1], squeeze=True, sep='\t', decimal=',', header=None)
 
-    def __init__(self, path, handle_key_errors='ignore', sensor_widths=(214, 1100)):
+    def __init__(self, path, handle_key_errors='ignore', sensor_widths=(1100, 214),
+                 initial_update=True):
         self.path = Path(path)
-        self.is_dir()
         self.sensor_widths = sensor_widths
         self.handle_key_errors = handle_key_errors
 
@@ -24,7 +29,119 @@ class OldStructure:
         self.images = None
         self.traces = None
 
-        self.update()
+        if initial_update:
+            self.is_dir()
+            self.update()
+
+    def set_init_kwargs(self):
+        handle_key_errors = st.sidebar.text_input(
+            "How to handle key errors?", value=self.handle_key_errors)
+        sensor_width_x = st.sidebar.number_input("Width of the image in um: ",
+                                                 value=self.sensor_widths[0])
+        sensor_width_y = st.sidebar.number_input("Height of the image in um: ",
+                                                 value=self.sensor_widths[1])
+        return handle_key_errors, (sensor_width_x, sensor_width_y)
+
+    def streamlit_from_date(self):
+        handle_key_errors, sensor_widths = self.set_init_kwargs()
+        base_path = Path(st.text_input('Enter base path', value=str(self.base_path)))
+        if not base_path.is_dir():
+            st.text("'Base path is not a valid directory. '")
+            st.stop()
+
+        # Choose date
+        default_date = self.date if self.date else datetime.date.today()
+        date: datetime.date = st.date_input('Choose data', default_date)
+        strf_date = date.strftime(OldStructure.date_strftime)
+        date_path = base_path / strf_date
+        if not date_path.is_dir():
+            st.text(
+                'No experimental run was found on that date. Consider Changing the base path or '
+                'verify the date.')
+            st.stop()
+        scan_names = pd.Series([x.name for x in date_path.iterdir() if x.is_dir()])
+        scan_names.insert(0, 'None')
+        default_name = self.scan_name if scan_names[self.scan_name].index else 0
+        scan_name = st.selectbox('Choose run', scan_names, index=default_name)
+        if scan_name == 'None' or scan_name == self.scan_name:
+            st.stop()
+        path = date_path / scan_name
+        self.__init__(path, handle_key_errors=handle_key_errors,
+                      sensor_widths=sensor_widths, initial_update=False)
+
+    def streamlit_from_path(self):
+        path = st.text_input("Enter path: ", value=str(self.path))
+        path = Path(path).absolute()
+        if not path.is_dir():
+            st.text("'Path is not a valid directory. '")
+            st.stop()
+        return self.__init__(path)
+
+    def streamlit_update(self):
+        if st.button("Load data"):
+            self.is_dir()
+            self.update()
+            return self.data
+
+    def export_data(self, path):
+        path = Path(path)
+        (path / 'Analysis').mkdir(parents=True)
+
+        self.copy_sequences_variables(path)
+        self.data.ryd_data.to_netcdf(path / 'raw_data.h5')
+
+    def streamlit_export(self):
+        st.write("""## Export data""")
+        if self.date is None:
+            export_option = "by path"
+        else:
+            export_option = st.radio(
+                "How to define the destiny folder: ", options=["by date", "by path"]
+            )
+
+        if export_option == "by date":
+            path = Path(st.text_input("Save as netcdf here"))
+            destiny_path = path / self.strf_date / self.scan_name
+        else:
+            destiny_path = Path(st.text_input("Save as netcdf here"))
+
+        st.text("""Data will be saved here: {}""".format(str(destiny_path)))
+
+        if st.button('to_netcdf'):
+            self.export_data(destiny_path)
+
+    def copy_sequences_variables(self, destiny_path):
+        origin_path = self.path
+        for dir_name in ('Experimental Sequences', 'Variables'):
+            (destiny_path / dir_name).mkdir()
+            copy_tree(
+                str(origin_path / dir_name),
+                str(destiny_path / dir_name)
+            )
+
+    @property
+    def base_path(self):
+        return self.path.parent.parent
+
+    @property
+    def scan_name(self):
+        try:
+            return self.path.parts[-1]
+        except IndexError:
+            return None
+
+    @property
+    def strf_date(self):
+        try:
+            return self.path.parts[-2]
+        except IndexError:
+            return None
+
+    @property
+    def date(self):
+        if self.strf_date is None:
+            return None
+        return datetime.datetime.strptime(self.strf_date, self.date_strftime).date()
 
     def is_dir(self):
         if not self.path.is_dir():
@@ -33,7 +150,8 @@ class OldStructure:
 
     def update_tmstps(self):
         variables_path = self.path / 'Variables'
-        new_tmstps = [tmstp for tmstp in self.iter_tmstps(variables_path, self.filename_pattern + '.txt')
+        new_tmstps = [tmstp for tmstp in
+                      self.iter_tmstps(variables_path, self.filename_pattern + '.txt')
                       if tmstp not in self.tmstps]
         self.tmstps.extend(new_tmstps)
         return new_tmstps
@@ -79,7 +197,8 @@ class OldStructure:
         old_la_path = self.path / 'FITS Files' / '00_all_fit_results.csv'
         old_la = pd.read_csv(old_la_path, **self.csv_kwargs)
         old_la.rename(columns=lambda x: x.replace(' ', ''), inplace=True)
-        old_la.time = old_la.time.apply(lambda t: pd.to_datetime(t, unit='s', origin=self.raw_data.tmstps[0].date()))
+        old_la.time = old_la.time.apply(
+            lambda t: pd.to_datetime(t, unit='s', origin=self.raw_data.tmstps[0].date()))
         old_la.set_index('time', inplace=True)
         del old_la['Index']
         return old_la
@@ -96,7 +215,8 @@ class OldStructure:
     def _fits_to_image(file):
         if file.is_file():
             with astropy.io.fits.open(file) as fits_file:
-                return fits_file[0].data
+                data = fits_file[0].data
+                return np.transpose(data, axes=[0, 2, 1])
 
     def _get_image_coords(self):
         if self.images:
@@ -165,7 +285,7 @@ class OldStructure:
 
     def initialize_traces(self, tmstps):
         time = self._get_scope_traces_index()
-        if not time:
+        if time is None:
             return None
         shape = (len(tmstps), time.size)
 
@@ -178,9 +298,10 @@ class OldStructure:
 
     def get_scope_traces(self, tmstps):
         scope_traces = self.initialize_traces(tmstps)
-        if not scope_traces:
+        if scope_traces is None:
             return None
-        for tmstp, trace in tqdm(self._iter_traces(tmstps, 'fast'), desc='load scope traces', leave=False):
+        for tmstp, trace in tqdm(self._iter_traces(tmstps, 'fast'), desc='load scope traces',
+                                 leave=False):
             scope_traces.loc[{'tmstp': tmstp}] = trace
         return scope_traces
 
@@ -212,9 +333,9 @@ class OldStructure:
 
     def get_raw_data(self):
         raw_data = xr.Dataset()
-        if self.images:
+        if self.images is not None:
             raw_data = xr.merge([raw_data, self.images])
-        if self.traces:
+        if self.traces is not None:
             raw_data['scope_traces'] = self.traces
         return raw_data
 
@@ -232,8 +353,11 @@ class OldStructure:
 
     @property
     def data(self):
+        multi_index = self.shot_multiindex
+        new_indices = multi_index.to_frame().set_index('tmstp')
+
         raw_data = self.get_raw_data()
-        raw_data = raw_data.reindex(tmstp=self.shot_multiindex)
-        raw_data = raw_data.rename(tmstp='shot')
+        raw_data = raw_data.merge(new_indices)
+        raw_data = raw_data.set_index(shot=('tmstp', *new_indices.columns))
         raw_data.attrs.update(self.unique_parameters)
         return raw_data
