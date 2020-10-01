@@ -14,7 +14,7 @@ from rydanalysis.data_structure.ryd_data import load_ryd_data
 from streamlit_apps.ryd_state import RydState
 
 
-def page_import_export(state: RydState):
+def page_import_export(state):
 
     st.markdown(
         r"""

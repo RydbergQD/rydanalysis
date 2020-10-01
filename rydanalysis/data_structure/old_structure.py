@@ -265,7 +265,10 @@ class OldStructure:
         for tmstp in tmstps:
             file = traces_path / tmstp.strftime(self.strftime + '_C1.csv')
             if file.is_file():
-                yield tmstp, self.read_scope_trace(file, method)
+                try:
+                    yield tmstp, self.read_scope_trace(file, method)
+                except pd.errors.ParserError:
+                    continue
 
     def read_scope_trace(self, file, method):
         if method == 'fast':
