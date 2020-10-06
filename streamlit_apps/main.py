@@ -35,7 +35,7 @@ def main():
         fit_names=['density'],
         image_parameters=ImageParameters(),
         ion_parameters=IonParameters(),
-        old_structure=ra.OldStructure("", initial_update=False)
+        old_structure=ra.OldStructure("")
     )
 
     pages = {

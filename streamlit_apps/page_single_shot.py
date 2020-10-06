@@ -1,13 +1,13 @@
 import streamlit as st
 
 from rydanalysis.data_structure.ryd_data import *
-from .ryd_state import RydState
+# from .ryd_state import RydState
 from .variables_explorer import plot_variables
 from .image_analysis import analyse_images, plot_images
 from .ion_analysis import live_ion_analysis, plot_ion_trace
 
 
-def page_single_shot(state: RydState):
+def page_single_shot(state):
     st.write(state.sequence_selector)
     data = state.data
     if not data:

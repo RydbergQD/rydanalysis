@@ -14,7 +14,6 @@ from rydanalysis.data_structure.ryd_data import load_ryd_data
 
 
 def page_import_export(state):
-
     st.markdown(
         r"""
         # Import and export data
@@ -35,8 +34,8 @@ def page_import_export(state):
     state.sequence_selector = sequence_selector
 
     if sequence_selector == 'by date':
-        state.old_structure.streamlit_from_date()
-        data = state.old_structure.streamlit_update()
+        state.old_structure = from_date(state.old_structure)
+        data = state.old_structure.data
     elif sequence_selector == 'by path':
         state.old_structure.streamlit_from_path()
         data = state.old_structure.streamlit_update()
@@ -82,3 +81,29 @@ class OldStructureImporter(DataImporter):
             data = self.old_structure.data
 
 
+def from_date(old_structure):
+    handle_key_errors, sensor_widths = old_structure.set_init_kwargs()
+    base_path = Path(st.text_input('Enter base path', value=str(old_structure.base_path)))
+    if not base_path.is_dir():
+        st.text("'Base path is not a valid directory. '")
+        st.stop()
+
+    # Choose date
+    default_date = old_structure.date if old_structure.date else datetime.date.today()
+    date: datetime.date = st.date_input('Choose data', default_date)
+    strf_date = date.strftime(old_structure.date_strftime)
+    date_path = base_path / strf_date
+    if not date_path.is_dir():
+        st.text(
+            'No experimental run was found on that date. Consider Changing the base path or '
+            'verify the date.')
+        st.stop()
+    scan_names = pd.Series([x.name for x in date_path.iterdir() if x.is_dir()])
+    scan_names.insert(0, 'None')
+    default_name = old_structure.scan_name if scan_names[old_structure.scan_name].index else 0
+    scan_name = st.selectbox('Choose run', scan_names, index=default_name)
+    if scan_name == 'None' or scan_name == old_structure.scan_name:
+        st.stop()
+    path = date_path / scan_name
+    return OldStructure(path, handle_key_errors=handle_key_errors,
+                        sensor_widths=sensor_widths)

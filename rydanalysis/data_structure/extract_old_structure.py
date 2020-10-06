@@ -7,6 +7,8 @@ from pathlib import Path
 from dataclasses import dataclass, field, asdict
 from typing import List, Tuple
 from tqdm.notebook import tqdm
+import datetime
+from distutils.dir_util import copy_tree
 
 
 @dataclass
@@ -40,6 +42,44 @@ class OldStructure:
     handle_key_errors: str = 'ignore'
     sensor_widths: Tuple = (1100, 214)
     batch_size: int = field(default=500)
+
+    def copy_sequences_variables(self, destiny_path):
+        origin_path = self.path
+        for dir_name in ('Experimental Sequences', 'Variables'):
+            (destiny_path / dir_name).mkdir()
+            copy_tree(
+                str(origin_path / dir_name),
+                str(destiny_path / dir_name)
+            )
+
+    @property
+    def base_path(self):
+        return self.path.parent.parent
+
+    @property
+    def scan_name(self):
+        try:
+            return self.path.parts[-1]
+        except IndexError:
+            return None
+
+    @property
+    def strf_date(self):
+        try:
+            return self.path.parts[-2]
+        except IndexError:
+            return None
+
+    @property
+    def date(self):
+        if self.strf_date is None:
+            return None
+        return datetime.datetime.strptime(self.strf_date, self.date_strftime).date()
+
+    def is_dir(self):
+        if not self.path.is_dir():
+            raise AttributeError("The given path is no directory. Check the path!")
+        return True
 
     def extract_tmstps(self):
         path = self.path / 'Variables'
