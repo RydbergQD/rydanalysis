@@ -11,7 +11,6 @@ from numbers import Number
 
 from rydanalysis.data_structure.old_structure import OldStructure
 from rydanalysis.data_structure.ryd_data import load_ryd_data
-from streamlit_apps.ryd_state import RydState
 
 
 def page_import_export(state):
@@ -54,8 +53,9 @@ def page_import_export(state):
     else:
         st.set_option('deprecation.showfileUploaderEncoding', False)
         file = st.file_uploader('choose_file')
-        if file:
-            data = load_ryd_data(file)
+        if not file:
+            st.stop()
+        data = load_ryd_data(file)
 
     state.data = data
 

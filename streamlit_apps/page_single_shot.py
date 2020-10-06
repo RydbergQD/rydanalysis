@@ -19,15 +19,16 @@ def page_single_shot(state: RydState):
 
     plot_variables(data.ryd_data.variables, tmstp)
 
-    if st.sidebar.checkbox("Change live analysis parameters: "):
-        state.ion_parameters.update_ion_params()
-        state.image_parameters.update_image_params(shot)
-
     if shot.ryd_data.has_traces:
+        if st.sidebar.checkbox("Change live analysis parameters: "):
+            state.ion_parameters.update_ion_params()
+
         trace, peaks = live_ion_analysis(shot, state.ion_parameters)
         plot_ion_trace(trace, peaks)
 
     if shot.ryd_data.has_images:
+        if st.sidebar.checkbox("Change live analysis parameters: "):
+            state.image_parameters.update_image_params(shot)
         summary, fit_ds = analyse_images(shot, state.image_parameters)
         plot_images(shot, state.image_parameters, summary, fit_ds)
 

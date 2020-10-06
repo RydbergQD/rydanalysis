@@ -80,6 +80,7 @@ class ImageParameters:
 def analyse_images(shot: xr.Dataset, parameters: ImageParameters):
     if not shot.ryd_data.has_images:
         return None, None
+
     tmstp = shot.attrs["tmstp"]
     imaging = absorption_imaging(shot, parameters)
     image = imaging.density

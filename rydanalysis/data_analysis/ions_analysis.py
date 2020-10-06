@@ -23,7 +23,8 @@ class PeaksSummaryAccessor:
             Reduced DataArray or Dataset with the number of counts
         """
         kwargs.update(height=height, width=width)
-        group_by_object = self.traces.groupby('shot')
+        variable_dim = [a for a in self.traces.dims if a != "time"][0]
+        group_by_object = self.traces.groupby(variable_dim)
 
         def _count_reduce(trace, axis=0, height=0.03, width=3, **kwargs):
             peaks, _ = find_peaks(-trace, height=height, width=width, **kwargs)
@@ -42,8 +43,9 @@ class PeaksSummaryAccessor:
         Returns:
             Integrated ion signal (xarray DataArray or Dataset)
         """
-        traces = -self.traces[self.traces < -height]
-        integral = traces.groupby('shot').sum()
+        traces = -self.traces.where(self.traces < -height)
+        variable_dim = [a for a in self.traces.dims if a != "time"][0]
+        integral = traces.groupby(variable_dim).sum(dim)
         integral.name = 'ionsInt'
         return integral
 

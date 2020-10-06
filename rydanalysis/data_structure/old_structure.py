@@ -260,29 +260,27 @@ class OldStructure:
                 images[name].loc[{'tmstp': tmstp}] = image
         return images
 
-    def _iter_traces(self, tmstps, method='fast'):
+    def read_scope_trace(self, tmstp, method):
         traces_path = self.path / 'Scope Traces'
-        for tmstp in tmstps:
-            file = traces_path / tmstp.strftime(self.strftime + '_C1.csv')
-            if file.is_file():
-                try:
-                    yield tmstp, self.read_scope_trace(file, method)
-                except pd.errors.ParserError:
-                    continue
-
-    def read_scope_trace(self, file, method):
-        if method == 'fast':
-            scope_trace = pd.read_csv(file, **self.fast_csv_kwargs)
-            if scope_trace.shape[0] > 1:
-                return scope_trace.values
-        else:
-            return pd.read_csv(file, **self.csv_kwargs)
+        file = traces_path / tmstp.strftime(self.strftime + '_C1.csv')
+        if not file.is_file():
+            return None
+        try:
+            if method == 'fast':
+                scope_trace = pd.read_csv(file, **self.fast_csv_kwargs)
+                if scope_trace.shape[0] > 1:
+                    return scope_trace.values
+            else:
+                return pd.read_csv(file, **self.csv_kwargs)
+        except:
+            pass
 
     def _get_scope_traces_index(self):
         if self.traces:
             return self.traces['time']
 
-        for tmstp, trace in self._iter_traces(self.tmstps, method='slow'):
+        for tmstp in self.tmstps:
+            trace = self.read_scope_trace(tmstp, method='slow')
             if trace is not None:
                 return trace.index
 
@@ -303,8 +301,8 @@ class OldStructure:
         scope_traces = self.initialize_traces(tmstps)
         if scope_traces is None:
             return None
-        for tmstp, trace in tqdm(self._iter_traces(tmstps, 'fast'), desc='load scope traces',
-                                 leave=False):
+        for tmstp in tqdm(tmstps, desc='load scope traces', leave=False):
+            trace = self.read_scope_trace(tmstp, method='fast')
             scope_traces.loc[{'tmstp': tmstp}] = trace
         return scope_traces
 
