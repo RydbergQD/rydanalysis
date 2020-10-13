@@ -22,7 +22,8 @@ class PeaksSummaryAccessor:
         Returns:
             Reduced DataArray or Dataset with the number of counts
         """
-        kwargs.update(height=height, width=width)
+        traces: xr.DataArray = self.traces
+        kwargs.update(height=height, width=traces.peaks.time_to_pixel(width))
         variable_dim = [a for a in self.traces.dims if a != "time"][0]
         group_by_object = self.traces.groupby(variable_dim)
 
@@ -61,8 +62,9 @@ class PeaksSummaryAccessor:
         """
         traces = self.traces
         all_peaks = xr.zeros_like(traces, dtype=np.dtype(bool))
-        for coord, trace in tqdm(traces.groupby('shot')):
-            trace = trace.squeeze()
+        variable_dim = [a for a in self.traces.dims if a != "time"][0]
+        for coord, trace in tqdm(traces.groupby(variable_dim)):
+            trace = - trace.squeeze()
             peaks = trace.peaks.find_peaks_wavelet(width=width, prominence=prominence)
             all_peaks.loc[peaks.coords] = True
         return all_peaks
@@ -81,9 +83,10 @@ class PeaksSummaryAccessor:
         """
         traces = self.traces
         all_peaks = xr.zeros_like(traces, dtype=np.dtype(bool))
-        for coord, trace in tqdm(traces.groupby('run')):
-            trace = trace.squeeze()
-            peaks = trace.peaks.find_peaks(trace, width=width, height=height, distance=distance, prominence=prominence)
+        variable_dim = [a for a in self.traces.dims if a != "time"][0]
+        for coord, trace in tqdm(traces.groupby(variable_dim)):
+            trace = -trace.squeeze()
+            peaks = trace.peaks.find_peaks(width=width, height=height, distance=distance, prominence=prominence)
             all_peaks.loc[peaks.coords] = True
         return all_peaks
 
@@ -107,7 +110,7 @@ class PeaksAccessor:
         time_values = np.sort(self.trace.time.values)
         return time_values[1] - time_values[0]
 
-    def find_peaks(self, height=None, prominence=None, threshold=None, distance=None, width=None):
+    def find_peaks(self, height=0, prominence=0, threshold=0, distance=0, width=0):
         peaks_index, properties = find_peaks(
             self.trace,
             height=height,

@@ -43,6 +43,9 @@ class OldStructure:
     sensor_widths: Tuple = (1100, 214)
     batch_size: int = field(default=500)
 
+    def __post_init__(self):
+        self.path = Path(self.path)
+
     def copy_sequences_variables(self, destiny_path):
         origin_path = self.path
         for dir_name in ('Experimental Sequences', 'Variables'):
@@ -153,16 +156,33 @@ class OldStructure:
         except:
             pass
 
-    def reduce_traces(self, tmstps):
-        traces = [self.extract_scope_trace(tmstp, method="fast")
-                  for tmstp in tqdm(tmstps, desc='load scope traces', leave=False)]
-        traces = list(filter(None.__ne__, traces))
-        if not traces:
+    def _get_scope_traces_index(self, tmstps):
+        for tmstp in tmstps:
+            trace = self.extract_scope_trace(tmstp, method='slow')
+            if trace is not None:
+                return trace.index
+
+    def initialize_traces(self, tmstps):
+        time = self._get_scope_traces_index(tmstps)
+        if time is None:
             return None
-        traces = pd.concat(traces, axis=1)
-        first_tmstp = traces.columns[0]
-        traces.index = self.extract_scope_trace(first_tmstp, "slow").index
-        return traces.T
+        shape = (len(tmstps), time.size)
+
+        scope_traces = xr.DataArray(
+            np.full(shape, np.NaN, dtype=np.float32),
+            dims=['tmstp', 'time'],
+            coords={'tmstp': tmstps, 'time': time.values}
+        )
+        return scope_traces
+
+    def reduce_traces(self, tmstps):
+        scope_traces = self.initialize_traces(tmstps)
+        if scope_traces is None:
+            return None
+        for tmstp in tqdm(tmstps, desc='load scope traces', leave=False):
+            trace = self.extract_scope_trace(tmstp, method='fast')
+            scope_traces.loc[{'tmstp': tmstp}] = trace
+        return scope_traces
 
     def get_raw_data(self, tmstps):
         parameters = self.reduce_parameters(tmstps)
@@ -172,17 +192,15 @@ class OldStructure:
         raw_data = xr.Dataset()
         raw_data["parameters"] = parameters
         if traces is not None:
-            raw_data['scope_traces'] = xr.DataArray(
-                traces, dims=["tmstp", "time"],
-                coords=dict(tmstp=tmstps, time=traces.columns.values)
-            )
+            raw_data['scope_traces'] = traces
         if images is not None:
             raw_data = xr.merge([raw_data, images])
         return raw_data
 
     def save_data(self, path):
         path = Path(path)
-        path.mkdir(exist_ok=True)
+        if not path.is_dir():
+            path.mkdir(parents=True)
 
         if self.batch_size:
             if self.batch_size <= 0:

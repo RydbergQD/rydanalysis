@@ -7,7 +7,7 @@ from dataclasses import dataclass
 @dataclass
 class IonParameters:
     peak_height: float = 0.02
-    peak_width: float = 3.
+    peak_width: float = 0.3
 
     def update_ion_params(self):
         st.markdown('## Ion trace')

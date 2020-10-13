@@ -39,7 +39,7 @@ class CosineModel(Model):
                        'independent_vars': independent_vars})
 
         def cosine(x, freq=1.0, amp=1.0, phase=0.0, offset=0.0):
-            return amp * np.cos(2 * np.pi * freq * (x + phase)) + offset
+            return amp * np.cos(2 * np.pi * (freq * x + phase)) + offset
         super(CosineModel, self).__init__(cosine, **kwargs)
         self._set_paramhints_prefix()
 

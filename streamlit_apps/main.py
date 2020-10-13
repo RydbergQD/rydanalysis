@@ -26,6 +26,7 @@ import numpy as np
 from streamlit_apps.image_analysis import ImageParameters
 from streamlit_apps.ion_analysis import IonParameters
 import rydanalysis as ra
+from pathlib import Path
 
 
 def main():
@@ -35,7 +36,12 @@ def main():
         fit_names=['density'],
         image_parameters=ImageParameters(),
         ion_parameters=IonParameters(),
-        old_structure=ra.OldStructure("")
+        old_structure=ra.OldStructure(Path(r"\\147.142.18.81\rydberg\data\2020_10_07\01_PhaseScan2")),
+        export_options=dict(
+            export_option="by date",
+            export_path=Path(r"\\147.142.18.81\qd-local\qd\rydberg\Projekte - Projects\2020_Aging"),
+            destiny_path=Path(".")
+        )
     )
 
     pages = {
