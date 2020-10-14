@@ -128,9 +128,21 @@ def streamlit_define_hdf5_path(state):
     return options["destiny_path"]
 
 
-def streamlit_export(state, path):
+def streamlit_export(state, path: Path):
     if st.button('save to hdf5'):
-        state.old_structure.save_data(path)
+        (path / 'Analysis').mkdir(parents=True, exist_ok=True)
+        copy_sequences_variables(state.old_structure.path, path)
+
+        state.old_structure.save_data(path / "raw_data")
+
+
+def copy_sequences_variables(origin_path, destiny_path):
+    for dir_name in ('Experimental Sequences', 'Variables'):
+        (destiny_path / dir_name).mkdir()
+        copy_tree(
+            str(origin_path / dir_name),
+            str(destiny_path / dir_name)
+        )
 
 
 def streamlit_load_hdf5(state, path):
