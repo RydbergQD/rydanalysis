@@ -138,7 +138,7 @@ def streamlit_export(state, path: Path):
 
 def copy_sequences_variables(origin_path, destiny_path):
     for dir_name in ('Experimental Sequences', 'Variables'):
-        (destiny_path / dir_name).mkdir()
+        (destiny_path / dir_name).mkdir(exist_ok=True)
         copy_tree(
             str(origin_path / dir_name),
             str(destiny_path / dir_name)
@@ -148,4 +148,4 @@ def copy_sequences_variables(origin_path, destiny_path):
 def streamlit_load_hdf5(state, path):
     load_lazy = st.checkbox("Load lazy: ", value=False)
     if st.button('load_netcdf'):
-        state.data = load_data(path, lazy=load_lazy)
+        state.data = load_data(path / "raw_data", lazy=load_lazy)

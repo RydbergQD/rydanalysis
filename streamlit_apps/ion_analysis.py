@@ -13,7 +13,7 @@ class IonParameters:
         st.markdown('## Ion trace')
         st.sidebar.markdown("## Peak finding options:")
         self.peak_height = st.sidebar.number_input(
-            'minimal peak height', min_value=0.015, value=self.peak_height, step=0.001, format="%g")
+            'minimal peak height', min_value=0.005, value=self.peak_height, step=0.0005, format="%g")
         self.peak_width = st.sidebar.number_input(
             'minimal peak width [in ns]', min_value=0., value=self.peak_width)
 
