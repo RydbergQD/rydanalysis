@@ -49,7 +49,7 @@ class OldStructure:
     def copy_sequences_variables(self, destiny_path):
         origin_path = self.path
         for dir_name in ('Experimental Sequences', 'Variables'):
-            (destiny_path / dir_name).mkdir()
+            (destiny_path / dir_name).mkdir(exist_ok=True)
             copy_tree(
                 str(origin_path / dir_name),
                 str(destiny_path / dir_name)
