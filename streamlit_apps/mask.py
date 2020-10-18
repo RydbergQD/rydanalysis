@@ -2,9 +2,7 @@ import streamlit as st
 import pandas as pd
 from io import StringIO
 
-from streamlit_apps.st_state_patch import State
-
-from rydanalysis.auxiliary.masks import PolygonMask
+from auxiliary.streamlit_utils.st_state_patch import State
 
 
 def define_mask(state):

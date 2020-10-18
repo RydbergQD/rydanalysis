@@ -3,6 +3,7 @@ from scipy.signal.wavelets import cwt, ricker
 import xarray as xr
 import numpy as np
 from tqdm.notebook import tqdm
+import pandas as pd
 
 
 @xr.register_dataarray_accessor("peaks_summary")
@@ -90,6 +91,15 @@ class PeaksSummaryAccessor:
             all_peaks.loc[peaks.coords] = True
         return all_peaks
 
+    def get_peak_description(self, height=0, prominence=0, threshold=0, distance=0, width=0):
+        traces = -self.traces
+        peak_df = pd.DataFrame()
+        for shot, trace in tqdm(traces.groupby("shot")):
+            df = trace.peaks.get_peak_description(height, prominence, threshold, distance, width)
+            df.index = pd.MultiIndex.from_tuples([[i, *shot] for i in range(df.shape[0])],
+                                                 names=["peak_number", "tmstp", "tCAM"])
+            peak_df = peak_df.append(df)
+
 
 @xr.register_dataarray_accessor("peaks")
 class PeaksAccessor:
@@ -110,8 +120,8 @@ class PeaksAccessor:
         time_values = np.sort(self.trace.time.values)
         return time_values[1] - time_values[0]
 
-    def find_peaks(self, height=0, prominence=0, threshold=0, distance=0, width=0):
-        peaks_index, properties = find_peaks(
+    def _find_peaks(self, height=0, prominence=0, threshold=0, distance=0, width=0):
+        return find_peaks(
             self.trace,
             height=height,
             distance=self.time_to_pixel(distance),
@@ -119,6 +129,9 @@ class PeaksAccessor:
             prominence=prominence,
             threshold=threshold
         )
+
+    def find_peaks(self, height=0, prominence=0, threshold=0, distance=0, width=0):
+        peaks_index, properties = self.find_peaks(height, prominence, threshold, distance, width)
         return self.trace[peaks_index]
 
     def convolve_wavelet(self, wavelet, width):
@@ -140,7 +153,30 @@ class PeaksAccessor:
         if time:
             return time / self.time_scale
 
+    def pixel_to_time(self, index):
+        """Returns a given time in pixels. if time is None, return None"""
+        return index * self.time_scale
+
+    def get_peak_description(self, height=0, prominence=0, threshold=0, distance=0, width=0):
+        peaks_index, properties = self.find_peaks(height, prominence, threshold, distance, width)
+        description = pd.DataFrame(properties)
+        description["peak_time"] = self.pixel_to_time(peaks_index)
+        return description
+
 
 def convolve_wavelet(trace, wavelet, width):
     length = min(10 * width, len(trace))
     return convolve(trace, wavelet(length, width), mode='same')
+
+
+def summarize_peak_description(peak_df: pd.DataFrame):
+    groupby = peak_df.groupby([var for var in peak_df.index.names if var != "peak_number"])
+    summary = groupby.mean()
+    summary.index.name = "shot"
+    summary = xr.DataArray(summary.values, dims=["shot", "variable"],
+                           coords=dict(shot=summary.index, variable=summary.columns))
+    summary = summary.to_dataset("variable")
+
+    counts = groupby.apply(len)
+    counts.index.name = "shot"
+    summary["counts"] = counts

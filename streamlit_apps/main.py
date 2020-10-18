@@ -10,18 +10,14 @@ run in terminal:
 The last number is the maximally allowed size for uploading raw_data in MBy
 """
 import os
-from time import sleep
 
 os.environ['PREFECT__LOGGING__LEVEL'] = "ERROR"
 os.environ["PATH"] += os.pathsep + 'C:/Program Files (x86)/Graphviz/bin/'
 
 import streamlit as st
-from streamlit_apps.st_state_patch import get as get_session_state
+from auxiliary.streamlit_utils.st_state_patch import get as get_session_state
 from streamlit_apps.import_export import page_import_export
 from streamlit_apps.page_single_shot import page_single_shot
-
-import xarray as xr
-import numpy as np
 
 from streamlit_apps.image_analysis import ImageParameters
 from streamlit_apps.ion_analysis import IonParameters

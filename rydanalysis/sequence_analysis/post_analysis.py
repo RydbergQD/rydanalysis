@@ -1,5 +1,5 @@
 import xarray as xr
-from .ion_seqeunce_analysis import get_ion_summary
+from .ion_sequence_analysis import get_ion_summary
 
 
 class PostAnalysis:

@@ -1,112 +1,118 @@
-from distutils.dir_util import copy_tree
-
 import streamlit as st
 from pathlib import Path
 import datetime
-import pandas as pd
-from dataclasses import dataclass
-import xarray as xr
-from typing import Tuple, List, Any
-from numbers import Number
+from dataclasses import dataclass, field
+from typing import Any
 
 from rydanalysis.data_structure.extract_old_structure import OldStructure, load_data
-from rydanalysis.data_structure.ryd_data import load_ryd_data
 
 
-from streamlit_apps.st_state_patch import get as get_session_state
+def default_path():
+    base_path = Path(r"\\147.142.18.81\rydberg\data")
+    date = datetime.date.today()
+    strf_date = date.strftime('%Y_%m_%d')
+    scan_name = ""
+    return str(base_path / strf_date / scan_name)
 
 
-@dataclass()
-class ImportExport:
-    base_path: str = r"\\147.142.18.81\rydberg\data"
-    date: Any = datetime.date.today()
-    scan_name: str = ""
+class OldStructureStreamlit(OldStructure):
+    interface: str = "streamlit"
+    use_date: bool = True
+    use_scan_name: bool = True
     export_path: str = r"\\147.142.18.81\qd-local\qd\rydberg\Projekte - Projects\2020_Aging"
     date_to_destiny: bool = True
 
-    def run(self):
-        st.markdown(
-            r"""
-            # Import and export data
-            """
-        )
-        self.from_date()
-
-    def from_date(self):
-        expander = st.beta_expander("Import from date", expanded=True)
+    def import_export(self):
+        st.markdown("### Set options")
+        expander = st.beta_expander("Set import options", expanded=True)
         with expander:
-            import_path = self.set_import_path_from_date()
-            old_structure = OldStructure(import_path)
-            export_path = self.set_export_path(old_structure)
-            col_save, col_load = st.beta_columns(2)
-            with col_save:
-                streamlit_export(old_structure, export_path)
-            with col_load:
-                streamlit_load_hdf5(export_path)
+            self.streamlit_set_path()
 
-    def set_import_path_from_date(self):
-        self.base_path = st.text_input('Enter base path', value=str(self.base_path))
-        base_path = Path(self.base_path)
-        if not base_path.is_dir():
-            st.text("'Base path is not a valid directory. '")
+        expander = st.beta_expander("Set export options", expanded=True)
+        with expander:
+            self.streamlit_set_export_path()
+        st.markdown("### Save and load data")
+        col_save, col_load = st.beta_columns(2)
+        with col_save:
+            st.markdown("# ")
+            self.streamlit_save(self.export_path)
+        with col_load:
+            return self.streamlit_load_hdf5()
+
+    def streamlit_set_path(self):
+        path = st.text_input('Enter base path', value=str(self.base_path))
+        path = Path(path)
+        if not path.is_dir():
+            st.text("'Base _path is not a valid directory. '")
 
         # Choose date
-        self.date = st.date_input('Choose data', self.date)
-        strf_date = self.date.strftime('%Y_%m_%d')
-        date_path = base_path / strf_date
+        self.use_date = st.checkbox("Choose from date?", self.use_date)
+        if self.use_date:
+            date = st.date_input('Choose data', self.date)
+            strf_date = date.strftime(self.date_strftime)
+            path = path / strf_date
 
         # Choose scan name
-        if date_path.is_dir():
-            scan_names = [x.name for x in date_path.iterdir() if x.is_dir()]
-        else:
-            st.text(
-                'No experimental run was found on that date. Consider Changing the base path or '
-                'verify the date.')
-            scan_names = []
-        if self.scan_name in scan_names:
-            scan_name_index = scan_names.index(self.scan_name)
-        else:
-            scan_name_index = 0
+        self.use_scan_name = st.checkbox("Choose scan name", self.use_scan_name)
+        if self.use_scan_name:
+            if path.is_dir():
+                scan_names = [x.name for x in path.iterdir() if x.is_dir()]
+            else:
+                st.text(
+                    'No experimental run was found on that date. Consider Changing the base path '
+                    'or verify the date.')
+                scan_names = []
+            if self.scan_name in scan_names:
+                scan_name_index = scan_names.index(self.scan_name)
+            else:
+                scan_name_index = 0
 
-        scan_name = st.selectbox('Choose run', scan_names, index=scan_name_index)
-        return date_path / scan_name
+            scan_name = st.selectbox('Choose run', scan_names, index=scan_name_index)
+            if scan_name is None:
+                scan_name = ""
+            path = str(path / scan_name)
+        self.path = path
 
-    def set_export_path(self, old_structure):
-        st.write("""## Export data""")
+    def streamlit_set_export_path(self):
         self.export_path = st.text_input("Save as netcdf here", value=self.export_path)
         export_path = Path(self.export_path)
 
-        # Add date to path
-        if old_structure.date is None:
-            self.date_to_destiny = st.checkbox("Add date to destiny path:", self.date_to_destiny)
+        # Add date to _path
+        if self.date is not None:
+            self.date_to_destiny = st.checkbox("Add date to destiny _path:", self.date_to_destiny)
         else:
             self.date_to_destiny = False
         if self.date_to_destiny:
-            export_path = export_path / old_structure.strf_date / old_structure.scan_name
+            export_path = export_path / self.strf_date / self.scan_name
 
         st.text("""Data will be saved here: {}""".format(str(export_path)))
-        return export_path
+        self.export_path = export_path
+
+    def streamlit_save(self, export_path):
+        if st.button('save to hdf5'):
+            (export_path / 'Analysis').mkdir(parents=True, exist_ok=True)
+            self.copy_sequences_variables(export_path)
+            self.save_data(export_path / "raw_data")
+
+    def streamlit_load_hdf5(self):
+        load_lazy = st.checkbox("Load lazy: ", value=False)
+        if st.button('load_netcdf'):
+            return load_data(Path(self.export_path) / "raw_data", lazy=load_lazy)
 
 
-def streamlit_export(import_path, export_path):
-    if st.button('save to hdf5'):
-        old_structure = OldStructure(import_path)
-        (export_path / 'Analysis').mkdir(parents=True, exist_ok=True)
-        old_structure.copy_sequences_variables(export_path)
-        old_structure.save_data(export_path / "raw_data")
+class ImportExport:
+    def __init__(self):
+        self.old_structure = OldStructureStreamlit(default_path())
+        self.raw_data = None
+
+    def run(self):
+        self.raw_data = self.old_structure.import_export()
+        if not self.raw_data:
+            st.stop()
 
 
-def streamlit_load_hdf5(path):
-    load_lazy = st.checkbox("Load lazy: ", value=False)
-    if st.button('load_netcdf'):
-        return load_data(path / "raw_data", lazy=load_lazy)
 
 
 if __name__ == '__main__':
-    state = get_session_state(
-        sequence_selector='by date',
-        data=None,
-        fit_names=['density'],
-        old_structure=OldStructure(Path(r"\\147.142.18.81\rydberg\data\2020_10_07\01_PhaseScan2")),
-        exporter=ImportExport()
-    )
+    old_structure = OldStructureStreamlit()
+    old_structure.import_export()

@@ -15,7 +15,7 @@ class OldStructureOnly10(OldStructure):
             return new_tmstps[:-(n_new-10)]
         else:
             return new_tmstps
-        # variables_path = self.path / 'Variables'
+        # variables_path = self._path / 'Variables'
         # new_tmstps = [tmstp for tmstp in self.iter_tmstps(variables_path, self.filename_pattern + '.txt')
         #              if tmstp not in self.tmstps][:2]
         # self.tmstps.extend(new_tmstps)

@@ -1,39 +1,28 @@
 import xarray as xr
-from .ion_seqeunce_analysis import get_ion_summary
+import pandas as pd
+from .ion_sequence_analysis import IonSequenceAnalysis
 from .image_sequence_analysis import ImageParameters
 
 
 class LiveAnalysis:
-    def __init__(self, old_structure, image_parameters=ImageParameters()):
-        self.old_structure = old_structure
+    def __init__(self, raw_data, image_parameters=ImageParameters(),
+                 ion_analysis=IonSequenceAnalysis()):
         self.image_parameters = image_parameters
-        new_data = self.initialize_raw_data()
-        self.raw_data = new_data.copy()
+        self.ion_analysis = ion_analysis
+        raw_data = raw_data.copy()
 
-        self.fit_ds, self.analysis_summary = self.initialize_summary(new_data)
+        self.ion_description, self.fit_ds, self.summary = self.analyze_data(raw_data)
 
-    def initialize_raw_data(self):
-        tmstps = self.old_structure.extract_tmstps()
-        tmstp_batch = tmstps[:self.old_structure.batch_size]
-        return self.old_structure.get_raw_data(tmstp_batch)
-
-    def initialize_summary(self, raw_data):
-        ion_summary = get_ion_summary(raw_data)
+    def analyze_data(self, raw_data):
+        ion_description, ion_summary = self.ion_analysis.full_analysis(raw_data.scope_traces)
         fit_ds, image_summary = self.fit_images(raw_data)
-        return fit_ds, xr.merge([ion_summary, image_summary])
+        return ion_description, fit_ds, xr.merge([ion_summary, image_summary])
 
-    def update(self):
-        new_data = self.update_raw_data()
-        new_ion_summary = get_ion_summary(new_data)
-        self.analysis_summary = xr.merge([self.analysis_summary, new_ion_summary])
-
-    def update_raw_data(self):
-        tmstps = self.old_structure.extract_tmstps()
-        old_tmstps = self.raw_data.tmstp.values
-        tmstp_batch = [t for t in tmstps if t not in old_tmstps][:self.old_structure.batch_size]
-        new_raw_data = self.old_structure.get_raw_data(tmstp_batch)
-        self.raw_data = xr.merge([self.raw_data, new_raw_data])
-        return new_raw_data
+    def update(self, raw_data):
+        new_description, new_ds, new_summary = self.analyze_data(raw_data.copy())
+        self.ion_description = pd.concat([self.ion_description, new_description], axis=0)
+        self.fit_ds = xr.concat([self.fit_ds, new_ds], dim="shot")
+        self.summary = xr.concat([self.summary, new_summary], dim="shot")
 
     def fit_images(self, data):
         t_exp = data.parameters.sel(param_dim="tCAM", drop=True) * 1e3
