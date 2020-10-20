@@ -11,7 +11,7 @@ def default_path():
     base_path = Path(r"\\147.142.18.81\rydberg\data")
     date = datetime.date.today()
     strf_date = date.strftime('%Y_%m_%d')
-    scan_name = ""
+    scan_name = " "
     return str(base_path / strf_date / scan_name)
 
 
@@ -30,12 +30,12 @@ class OldStructureStreamlit(OldStructure):
 
         expander = st.beta_expander("Set export options", expanded=True)
         with expander:
-            self.streamlit_set_export_path()
+            export_path = self.streamlit_set_export_path()
         st.markdown("### Save and load data")
         col_save, col_load = st.beta_columns(2)
         with col_save:
             st.markdown("# ")
-            self.streamlit_save(self.export_path)
+            self.streamlit_save(export_path)
         with col_load:
             return self.streamlit_load_hdf5()
 
@@ -86,7 +86,7 @@ class OldStructureStreamlit(OldStructure):
             export_path = export_path / self.strf_date / self.scan_name
 
         st.text("""Data will be saved here: {}""".format(str(export_path)))
-        self.export_path = export_path
+        return export_path
 
     def streamlit_save(self, export_path):
         if st.button('save to hdf5'):
@@ -102,15 +102,13 @@ class OldStructureStreamlit(OldStructure):
 
 class ImportExport:
     def __init__(self):
-        self.old_structure = OldStructureStreamlit(default_path())
+        self.old_structure = OldStructureStreamlit(default_path(), interface="streamlit")
         self.raw_data = None
 
     def run(self):
         self.raw_data = self.old_structure.import_export()
         if not self.raw_data:
             st.stop()
-
-
 
 
 if __name__ == '__main__':

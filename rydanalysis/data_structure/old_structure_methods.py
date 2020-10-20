@@ -73,7 +73,7 @@ def initialize_traces(tmstps, path: Path, strftime: str = '%Y_%m_%d_%H.%M.%S', *
 
 
 def get_traces(tmstps, path: Path, strftime: str = '%Y_%m_%d_%H.%M.%S', csv_kwargs=None,
-               fast_csv_kwargs=None, interface="tqdm_notebook"):
+               fast_csv_kwargs=None, interface="notebook"):
     if csv_kwargs is None:
         csv_kwargs = dict(index_col=0, squeeze=True, sep='\t', decimal=',', header=None)
     if fast_csv_kwargs is None:
@@ -151,7 +151,7 @@ def get_images(tmstps: List[pd.Timestamp], path: Path, strftime: str = '%Y_%m_%d
 
 
 def get_raw_data(tmstps: List[pd.Timestamp], path: Path, strftime: str = '%Y_%m_%d_%H.%M.%S',
-                 csv_kwargs=None, fast_csv_kwargs=None, interface: str = "tqdm"):
+                 csv_kwargs=None, fast_csv_kwargs=None, interface: str = "notebook"):
     raw_data = xr.Dataset()
     images = get_images(tmstps, path, strftime, interface)
     if images is not None:
@@ -159,6 +159,7 @@ def get_raw_data(tmstps: List[pd.Timestamp], path: Path, strftime: str = '%Y_%m_
     traces = get_traces(tmstps, path, strftime, csv_kwargs, fast_csv_kwargs, interface)
     if traces is not None:
         raw_data['scope_traces'] = traces
+    raw_data["parameters"] = get_parameters(tmstps, path, strftime, **csv_kwargs)
     return raw_data
 
 

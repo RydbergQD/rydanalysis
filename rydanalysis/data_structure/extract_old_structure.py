@@ -2,6 +2,7 @@ import datetime
 import os
 from dataclasses import dataclass, field
 from distutils.dir_util import copy_tree
+from shutil import copy
 from typing import Dict, Optional
 
 from ..auxiliary.user_input import custom_tqdm, user_input
@@ -44,12 +45,20 @@ class OldStructure:
 
     def copy_sequences_variables(self, destiny_path):
         origin_path = self._path
-        for dir_name in ('Experimental Sequences', 'Variables'):
-            (destiny_path / dir_name).mkdir(exist_ok=True)
-            copy_tree(
-                str(origin_path / dir_name),
-                str(destiny_path / dir_name)
-            )
+        for dir_name in ('Experimental Sequences', 'Voltages'):
+            origin_folder = origin_path / dir_name
+            destiny_folder = destiny_path / dir_name
+            destiny_folder.mkdir(exist_ok=True)
+            origin_files = set(origin_folder.glob("*.xml"))
+            existing_files = set(destiny_folder.glob("*.xml"))
+            new_files = list(origin_files.difference(existing_files))
+            for file in custom_tqdm(new_files, interface=self.interface, desc="Copy " + dir_name):
+                copy(file, destiny_folder)
+
+    def copy_voltages(self, destiny_path):
+        path = self._path / "Voltages"
+        for file in path.glob(".xml"):
+            copy(file, destiny_path / "Voltages")
 
     @property
     def base_path(self):
@@ -128,7 +137,7 @@ class OldStructure:
 
         old_tmstps = get_existing_tmstps(destiny_path)
         tmstps = self.extract_tmstps()
-        if old_tmstps:
+        if old_tmstps is not None:
             append_remove = user_input(
                 "Found already existing h5 files. Append (a) or overwrite (o)")
             if append_remove == "o":
@@ -143,7 +152,9 @@ class OldStructure:
         chunks = self.get_chunks(tmstps)
         for chunk in custom_tqdm(chunks, self.interface, "Iterate chunks", leave=True):
             raw_data = self.get_raw_data(chunk)
-            raw_data.to_netcdf(destiny_path / ("raw_data_batch" + str(chunk[0]) + ".h5"))
+            name = pd.to_datetime(str(chunk[0]))
+            name = name.strftime(self.strftime)
+            raw_data.to_netcdf(destiny_path / ("raw_data_batch" + name + ".h5"))
 
     @property
     def data(self):
@@ -157,7 +168,7 @@ class OldStructure:
 
 def get_existing_tmstps(destiny_path):
     try:
-        data = xr.open_mfdataset(destiny_path / "raw_data*.h5")
+        data = xr.open_mfdataset(str(destiny_path / "raw_data*.h5"))
         return data.tmstp.values
     except OSError:
         return None
