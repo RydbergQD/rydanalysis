@@ -1,5 +1,4 @@
 import xarray as xr
-import pandas as pd
 import numpy as np
 from typing import Union
 from rydanalysis.auxiliary.decorators import cached_property
@@ -24,12 +23,30 @@ class RydData:
         self._obj: Union[xr.Dataset, xr.Dataset] = xarray_obj
 
     @property
+    def has_multi_index(self):
+        if self.SHOT_INDEX in self._obj.dims:
+            return True
+        elif self.TMSTP in self._obj.dims:
+            return False
+        else:
+            raise AttributeError("Data has neither the index '{}' nor '{}'".format(
+                self.SHOT_INDEX, self.TMSTP
+            ))
+
+    @property
+    def shot_or_tmstp(self):
+        if self.has_multi_index:
+            return self.SHOT_INDEX
+        else:
+            return self.TMSTP
+
+    @property
+    def index(self):
+        return self._obj[self.shot_or_tmstp].to_index()
+
+    @property
     def variables(self):
-        coords = self._obj.shot.reset_index('shot').coords
-        variables = {variable: coords[variable] for variable in coords if variable != 'shot'}
-        df = pd.DataFrame(variables)
-        df.set_index('tmstp', inplace=True)
-        return df
+        return self.index.to_frame(index=False).set_index(self.shot_or_tmstp)
 
     def to_netcdf(self, path):
         data = self._obj.reset_index(self.SHOT_INDEX)
@@ -76,4 +93,3 @@ class RydTraces(RydData):
     def to_pandas(self, path):
         data = self._obj.reset_index(self.SHOT_INDEX)
         data.to_netcdf(path)
-

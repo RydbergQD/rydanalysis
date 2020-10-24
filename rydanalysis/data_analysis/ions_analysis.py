@@ -11,13 +11,14 @@ class PeaksSummaryAccessor:
     def __init__(self, xarray_obj):
         self.traces = xarray_obj
 
-    def count(self, dim='time', height=0.03, width=3, **kwargs):
+    def count(self, dim='time', height=0.03, width=3, sign=-1, **kwargs):
         """
         Count peaks using scipy.find_peaks
         Args:
             dim: Dimension along the peaks are counted
             height: minimal height of teh peaks
             width: minimal width of the peaks (in pixels)
+            sign: -1 to detect minima
             **kwargs: additional kwargs given to scipy.find_peaks
 
         Returns:
@@ -28,77 +29,42 @@ class PeaksSummaryAccessor:
         variable_dim = [a for a in self.traces.dims if a != "time"][0]
         group_by_object = self.traces.groupby(variable_dim)
 
-        def _count_reduce(trace, axis=0, height=0.03, width=3, **kwargs):
-            peaks, _ = find_peaks(-trace, height=height, width=width, **kwargs)
+        def _count_reduce(trace, axis=0):
+            peaks = trace.peaks.find_peaks(**kwargs)
             return len(peaks)
-        counts = group_by_object.reduce(_count_reduce, dim=dim, **kwargs)
+        counts = group_by_object.reduce(_count_reduce, dim=dim, **kwargs, sign=sign)
         counts.name = 'ion_counts'
         return counts
 
-    def integrate(self, dim='time', height=0.03):
+    def integrate(self, dim='time', height=0.03, sign=-1):
         """
         Integrate ions on multiple traces bundled in an xarray DataArray or Dataset.
         Args:
             dim: Dimension along the peaks are integrated
             height: minimal height of teh peaks
+            sign: multiply with traces
 
         Returns:
             Integrated ion signal (xarray DataArray or Dataset)
         """
-        traces = -self.traces.where(self.traces < -height)
-        variable_dim = [a for a in self.traces.dims if a != "time"][0]
+        traces = sign * self.traces
+        traces = traces.where(traces > height)
+        variable_dim = traces.ryd_data.shot_or_tmstp
         integral = traces.groupby(variable_dim).sum(dim)
         integral.name = 'ionsInt'
         return integral
 
-    def find_all_peaks_wavelet(self, width=0.8, prominence=0.014):
-        """
-        Find all peak positions using the wavelet peak finding algorithm.
-        Args:
-            width: minimal width of the peaks (in s)
-            prominence: minimal prominence
-
-        Returns:
-            Data Array with True a the location of the peaks, False if no peak was found.
-        """
+    def get_peak_description(self, height=0, prominence=0, threshold=0, distance=0, width=0, sign=-1):
         traces = self.traces
-        all_peaks = xr.zeros_like(traces, dtype=np.dtype(bool))
-        variable_dim = [a for a in self.traces.dims if a != "time"][0]
-        for coord, trace in tqdm(traces.groupby(variable_dim)):
-            trace = - trace.squeeze()
-            peaks = trace.peaks.find_peaks_wavelet(width=width, prominence=prominence)
-            all_peaks.loc[peaks.coords] = True
-        return all_peaks
-
-    def find_all_peaks_scipy(self, width=0.8, height=0.0005, prominence=0.001, distance=2):
-        """
-        Find all peak positions using the scipy peak finding algorithm.
-        Args:
-            width: minimal width of the peaks (in s)
-            height: minimal height of the peaks
-            prominence: minimal prominence
-            distance: minimal distance between the peaks (in s)
-
-        Returns:
-            Data Array with True a the location of the peaks, False if no peak was found.
-        """
-        traces = self.traces
-        all_peaks = xr.zeros_like(traces, dtype=np.dtype(bool))
-        variable_dim = [a for a in self.traces.dims if a != "time"][0]
-        for coord, trace in tqdm(traces.groupby(variable_dim)):
-            trace = -trace.squeeze()
-            peaks = trace.peaks.find_peaks(width=width, height=height, distance=distance, prominence=prominence)
-            all_peaks.loc[peaks.coords] = True
-        return all_peaks
-
-    def get_peak_description(self, height=0, prominence=0, threshold=0, distance=0, width=0):
-        traces = -self.traces
+        index = traces.ryd_data.index
         peak_df = pd.DataFrame()
-        for shot, trace in tqdm(traces.groupby("shot")):
-            df = trace.peaks.get_peak_description(height, prominence, threshold, distance, width)
+        for shot in tqdm(index):
+            trace = traces.sel(shot=shot)
+            df = trace.peaks.get_peak_description(height, prominence, threshold, distance, width, sign=-1)
             df.index = pd.MultiIndex.from_tuples([[i, *shot] for i in range(df.shape[0])],
-                                                 names=["peak_number", "tmstp", "tCAM"])
+                                                 names=["peak_number", *index.names])
             peak_df = peak_df.append(df)
+        return peak_df
 
 
 @xr.register_dataarray_accessor("peaks")
@@ -115,14 +81,28 @@ class PeaksAccessor:
             dims=['width', 'time']
         )
 
+    def integrate(self, height=0.03, sign=-1):
+        """
+        Integrate ions on multiple traces bundled in an xarray DataArray or Dataset.
+        Args:
+            height: minimal height of teh peaks
+            sign: -1 to detect minima, else +1
+
+        Returns:
+            Integrated ion signal (xarray DataArray or Dataset)
+        """
+        trace = sign * self.trace
+        return trace.where(trace > height).sum()
+
     @property
     def time_scale(self):
         time_values = np.sort(self.trace.time.values)
         return time_values[1] - time_values[0]
 
-    def _find_peaks(self, height=0, prominence=0, threshold=0, distance=0, width=0):
+    def _find_peaks(self, height=0, prominence=0, threshold=0, distance=0, width=0, sign=-1):
+        trace = sign * self.trace
         return find_peaks(
-            self.trace,
+            trace,
             height=height,
             distance=self.time_to_pixel(distance),
             width=self.time_to_pixel(width),
@@ -160,6 +140,9 @@ class PeaksAccessor:
     def get_peak_description(self, height=0, prominence=0, threshold=0, distance=0, width=0):
         peaks_index, properties = self._find_peaks(height, prominence, threshold, distance, width)
         description = pd.DataFrame(properties)
+        for prop in ["left_bases", "right_bases", "widths", "left_ips", "right_ips"]:
+            if prop in description:
+                description[prop] *= self.time_scale
         description["peak_time"] = self.pixel_to_time(peaks_index)
         return description
 
@@ -180,3 +163,5 @@ def summarize_peak_description(peak_df: pd.DataFrame):
     counts = groupby.apply(len)
     counts.index.name = "shot"
     summary["counts"] = counts
+    return summary
+s
