@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from rydanalysis.data_structure.extract_old_structure import OldStructure, load_data
+from rydanalysis.sequence_analysis import LiveAnalysis
 
 
 def default_path():
@@ -21,6 +22,7 @@ class OldStructureStreamlit(OldStructure):
     use_scan_name: bool = True
     export_path: str = r"\\147.142.18.81\qd-local\qd\rydberg\Projekte - Projects\2020_Aging"
     date_to_destiny: bool = True
+    append_to_old_data = True
 
     def import_export(self):
         st.markdown("### Set options")
@@ -34,10 +36,9 @@ class OldStructureStreamlit(OldStructure):
         st.markdown("### Save and load data")
         col_save, col_load = st.beta_columns(2)
         with col_save:
-            st.markdown("# ")
-            self.streamlit_save(export_path)
+            self.streamlit_save(export_path, self.append_to_old_data)
         with col_load:
-            return self.streamlit_load_hdf5()
+            return self.streamlit_load_hdf5(export_path)
 
     def streamlit_set_path(self):
         path = st.text_input('Enter base path', value=str(self.base_path))
@@ -88,16 +89,17 @@ class OldStructureStreamlit(OldStructure):
         st.text("""Data will be saved here: {}""".format(str(export_path)))
         return export_path
 
-    def streamlit_save(self, export_path):
+    def streamlit_save(self, export_path, append):
+        self.append_to_old_data = st.checkbox("append to old data", self.append_to_old_data)
         if st.button('save to hdf5'):
             (export_path / 'Analysis').mkdir(parents=True, exist_ok=True)
             self.copy_sequences_variables(export_path)
-            self.save_data(export_path / "raw_data")
+            self.save_data(export_path / "raw_data", append)
 
-    def streamlit_load_hdf5(self):
+    def streamlit_load_hdf5(self, export_path):
         load_lazy = st.checkbox("Load lazy: ", value=False)
         if st.button('load_netcdf'):
-            return load_data(Path(self.export_path) / "raw_data", lazy=load_lazy)
+            return load_data(Path(export_path) / "raw_data", lazy=load_lazy)
 
 
 class ImportExport:
@@ -105,10 +107,13 @@ class ImportExport:
         self.old_structure = OldStructureStreamlit(default_path(), interface="streamlit")
         self.raw_data = None
 
-    def run(self):
-        self.raw_data = self.old_structure.import_export()
-        if not self.raw_data:
-            st.stop()
+
+def page_import_export(importer=ImportExport(), analyzer=LiveAnalysis()):
+    importer.raw_data = importer.old_structure.import_export()
+    if not importer.raw_data:
+        st.stop()
+    if st.button("Analyze data"):
+        analyzer.analyze_data(importer.raw_data)
 
 
 if __name__ == '__main__':

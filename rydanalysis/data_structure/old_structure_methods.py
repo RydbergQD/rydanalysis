@@ -46,6 +46,8 @@ def read_scope_trace(tmstp: pd.Timestamp, path: Path,
 def read_scope_trace_values(tmstp: pd.Timestamp, path: Path,
                             strftime: str = '%Y_%m_%d_%H.%M.%S', **csv_kwargs):
     scope_trace = read_scope_trace(tmstp, path, strftime, **csv_kwargs)
+    if scope_trace is None:
+        return None
     if scope_trace.shape[0] > 1:
         scope_trace.name = tmstp
         return scope_trace
@@ -141,9 +143,10 @@ def get_images(tmstps: List[pd.Timestamp], path: Path, strftime: str = '%Y_%m_%d
         return None
     for tmstp in custom_tqdm(tmstps, interface, "Read images...", leave=True):
         image_list = read_image(tmstp, path, strftime)
-        for i, image in enumerate(image_list):
-            name = 'image_' + str(i).zfill(2)
-            images[name].loc[{'tmstp': tmstp}] = image
+        if image_list is not None:
+            for i, image in enumerate(image_list):
+                name = 'image_' + str(i).zfill(2)
+                images[name].loc[{'tmstp': tmstp}] = image
     return images
 
 

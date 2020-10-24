@@ -8,9 +8,9 @@ from rydanalysis.data_analysis.ions_analysis import PeaksSummaryAccessor, summar
 @dataclass
 class IonSequenceAnalysis:
     height: float = 0.02
-    prominence: float = 0
-    threshold: float = 0
-    distance: float = 0
+    prominence: float = 0.
+    threshold: float = 0.
+    distance: float = 0.
     width: float = 0.3
 
     def peak_description(self, traces: xr.DataArray):

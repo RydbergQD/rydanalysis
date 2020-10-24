@@ -131,7 +131,7 @@ class PeaksAccessor:
         )
 
     def find_peaks(self, height=0, prominence=0, threshold=0, distance=0, width=0):
-        peaks_index, properties = self.find_peaks(height, prominence, threshold, distance, width)
+        peaks_index, properties = self._find_peaks(height, prominence, threshold, distance, width)
         return self.trace[peaks_index]
 
     def convolve_wavelet(self, wavelet, width):
@@ -158,7 +158,7 @@ class PeaksAccessor:
         return index * self.time_scale
 
     def get_peak_description(self, height=0, prominence=0, threshold=0, distance=0, width=0):
-        peaks_index, properties = self.find_peaks(height, prominence, threshold, distance, width)
+        peaks_index, properties = self._find_peaks(height, prominence, threshold, distance, width)
         description = pd.DataFrame(properties)
         description["peak_time"] = self.pixel_to_time(peaks_index)
         return description

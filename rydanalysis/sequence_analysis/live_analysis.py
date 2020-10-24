@@ -5,13 +5,17 @@ from .image_sequence_analysis import ImageParameters
 
 
 class LiveAnalysis:
-    def __init__(self, raw_data, image_parameters=ImageParameters(),
+    def __init__(self, raw_data=None, image_parameters=ImageParameters(),
                  ion_analysis=IonSequenceAnalysis()):
         self.image_parameters = image_parameters
         self.ion_analysis = ion_analysis
-        raw_data = raw_data.copy()
-
-        self.ion_description, self.fit_ds, self.summary = self.analyze_data(raw_data)
+        if raw_data is not None:
+            raw_data = raw_data.copy()
+            self.ion_description, self.fit_ds, self.summary = self.analyze_data(raw_data)
+        else:
+            self.ion_description = None
+            self.fit_ds = None
+            self.summary = None
 
     def analyze_data(self, raw_data):
         ion_description, ion_summary = self.ion_analysis.full_analysis(raw_data.scope_traces)
@@ -28,3 +32,6 @@ class LiveAnalysis:
         t_exp = data.parameters.sel(param_dim="tCAM", drop=True) * 1e3
         images = data.drop_vars("parameters").drop_dims("param_dim")
         return self.image_parameters.analyse_images(images, t_exp)
+
+    def streamlit_update_params(self):
+        self.ion_analysis.streamlit_update_params()

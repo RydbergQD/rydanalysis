@@ -3,9 +3,9 @@ import os
 from dataclasses import dataclass, field
 from distutils.dir_util import copy_tree
 from shutil import copy
-from typing import Dict, Optional
+from typing import Dict, Optional, Iterable
 
-from ..auxiliary.user_input import custom_tqdm, user_input
+from ..auxiliary.user_input import custom_tqdm, user_input, choose_from_options
 from .old_structure_methods import *
 import streamlit as st
 
@@ -48,12 +48,13 @@ class OldStructure:
         for dir_name in ('Experimental Sequences', 'Voltages'):
             origin_folder = origin_path / dir_name
             destiny_folder = destiny_path / dir_name
-            destiny_folder.mkdir(exist_ok=True)
-            origin_files = set(origin_folder.glob("*.xml"))
-            existing_files = set(destiny_folder.glob("*.xml"))
-            new_files = list(origin_files.difference(existing_files))
+            if not destiny_folder.is_dir():
+                destiny_folder.mkdir(exist_ok=True)
+            origin_files = set(path.name for path in origin_folder.glob("*.xml"))
+            existing_files = set(path.name for path in destiny_folder.glob("*.xml"))
+            new_files = list(origin_files - existing_files)
             for file in custom_tqdm(new_files, interface=self.interface, desc="Copy " + dir_name):
-                copy(file, destiny_folder)
+                copy(origin_folder / file, destiny_folder)
 
     def copy_voltages(self, destiny_path):
         path = self._path / "Voltages"
@@ -132,19 +133,16 @@ class OldStructure:
             n = abs(self.chunk_size)
             return [tmstps[i:i + n] for i in range(0, len(tmstps), n)]
 
-    def save_data(self, destiny_path):
+    def save_data(self, destiny_path, append=True):
         destiny_path = Path(destiny_path)
-
-        old_tmstps = get_existing_tmstps(destiny_path)
         tmstps = self.extract_tmstps()
-        if old_tmstps is not None:
-            append_remove = user_input(
-                "Found already existing h5 files. Append (a) or overwrite (o)")
-            if append_remove == "o":
-                for f in destiny_path.glob('*.h5'):
-                    os.remove(f)
-            else:
-                tmstps = compare_tmstps(old_tmstps, tmstps)
+
+        if append:
+            old_tmstps = get_existing_tmstps(destiny_path)
+            tmstps = compare_tmstps(tmstps, old_tmstps)
+        else:
+            for f in destiny_path.glob('*.h5'):
+                os.remove(f)
 
         if not destiny_path.is_dir():
             destiny_path.mkdir(parents=True)
@@ -166,24 +164,25 @@ class OldStructure:
         return raw_data_to_multiindex(raw_data)
 
 
-def get_existing_tmstps(destiny_path):
+def get_existing_tmstps(destiny_path: Path) -> Iterable[pd.DatetimeIndex]:
     try:
-        data = xr.open_mfdataset(str(destiny_path / "raw_data*.h5"))
-        return data.tmstp.values
+        with xr.open_mfdataset(destiny_path.glob("*.h5"), concat_dim="tmstp") as data:
+            tmstps = map(pd.to_datetime, data.tmstp.values)
+            return tmstps
     except OSError:
-        return None
+        return []
 
 
-def compare_tmstps(old_tmstps, new_tmstps):
-    old_tmstps = set(old_tmstps)
-    return list(old_tmstps.difference(new_tmstps))
+def compare_tmstps(new_tmstps, old_tmstps):
+    new_tmstps = set(new_tmstps)
+    return list(new_tmstps.difference(old_tmstps))
 
 
-def load_data(path, lazy=False):
+def load_data(path, lazy=False, to_multiindex=True):
     path = Path(path)
     with xr.open_mfdataset(path.glob("*.h5"), concat_dim="tmstp") as data:
-        data = raw_data_to_multiindex(data)
         if not lazy:
-            return data.load()
-        else:
-            return data
+            data = data.load()
+    if to_multiindex:
+        data = raw_data_to_multiindex(data)
+    return data
