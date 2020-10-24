@@ -164,4 +164,3 @@ def summarize_peak_description(peak_df: pd.DataFrame):
     counts.index.name = "shot"
     summary["counts"] = counts
     return summary
-s
