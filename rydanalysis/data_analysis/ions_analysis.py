@@ -59,7 +59,7 @@ class PeaksSummaryAccessor:
         index = traces.ryd_data.index
         peak_df = pd.DataFrame()
         for shot in tqdm(index):
-            trace = traces.sel(shot=shot)
+            trace = traces.sel({traces.ryd_data.shot_or_tmstp: shot})
             df = trace.peaks.get_peak_description(height, prominence, threshold, distance, width, sign=-1)
             df.index = pd.MultiIndex.from_tuples([[i, *shot] for i in range(df.shape[0])],
                                                  names=["peak_number", *index.names])
@@ -130,15 +130,15 @@ class PeaksAccessor:
 
     def time_to_pixel(self, time):
         """Returns a given time in pixels. if time is None, return None"""
-        if time:
+        if time is not None:
             return time / self.time_scale
 
     def pixel_to_time(self, index):
         """Returns a given time in pixels. if time is None, return None"""
         return index * self.time_scale
 
-    def get_peak_description(self, height=0, prominence=0, threshold=0, distance=0, width=0):
-        peaks_index, properties = self._find_peaks(height, prominence, threshold, distance, width)
+    def get_peak_description(self, height=0, prominence=0, threshold=0, distance=0, width=0, sign=-1):
+        peaks_index, properties = self._find_peaks(height, prominence, threshold, distance, width, sign=sign)
         description = pd.DataFrame(properties)
         for prop in ["left_bases", "right_bases", "widths", "left_ips", "right_ips"]:
             if prop in description:

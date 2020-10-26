@@ -46,7 +46,7 @@ class RydData:
 
     @property
     def variables(self):
-        return self.index.to_frame(index=False).set_index(self.shot_or_tmstp)
+        return self.index.to_frame(index=False).set_index(self.TMSTP)
 
     def to_netcdf(self, path):
         data = self._obj.reset_index(self.SHOT_INDEX)

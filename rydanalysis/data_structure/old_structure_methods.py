@@ -5,7 +5,7 @@ from pathlib import Path
 import astropy.io.fits
 import numpy as np
 import xarray as xr
-from rydanalysis.auxiliary.user_input import custom_tqdm
+from rydanalysis.auxiliary.user_input import custom_tqdm, custom_output
 
 # Get parameters
 

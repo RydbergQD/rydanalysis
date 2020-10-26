@@ -18,6 +18,13 @@ def custom_tqdm(iterable, interface="notebook", desc="", leave=True):
         return iterable
 
 
+def custom_output(message, interface="notebook"):
+    if interface == "streamlit":
+        return st.text(message)
+    else:
+        return print(message)
+
+
 def user_input(interface="notebook", message="", default=""):
     if interface == "streamlit":
         return st.text_input(message, value=default)
