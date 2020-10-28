@@ -1,5 +1,6 @@
 from typing import Tuple, List
 
+import lecroyparser
 import pandas as pd
 from pathlib import Path
 import astropy.io.fits
@@ -31,8 +32,8 @@ def get_parameters(tmstps, path: Path, strftime: str = '%Y_%m_%d_%H.%M.%S', **cs
 # Read scope traces
 
 
-def read_scope_trace(tmstp: pd.Timestamp, path: Path,
-                     strftime: str = '%Y_%m_%d_%H.%M.%S', **csv_kwargs):
+def read_scope_trace_csv(tmstp: pd.Timestamp, path: Path,
+                         strftime: str = '%Y_%m_%d_%H.%M.%S', **csv_kwargs):
     traces_path = path / 'Scope Traces'
     file = traces_path / tmstp.strftime(strftime + '_C1.csv')
     if not file.is_file():
@@ -43,9 +44,15 @@ def read_scope_trace(tmstp: pd.Timestamp, path: Path,
         pass
 
 
-def read_scope_trace_values(tmstp: pd.Timestamp, path: Path,
-                            strftime: str = '%Y_%m_%d_%H.%M.%S', **csv_kwargs):
-    scope_trace = read_scope_trace(tmstp, path, strftime, **csv_kwargs)
+def read_scope_trace_trc(tmstp, path, strftime: str = '%Y_%m_%d_%H.%M.%S'):
+    traces_path = path / 'Scope Traces'
+    file = traces_path / tmstp.strftime("C3" + strftime + '00000.trc')
+    data = lecroyparser.ScopeData(str(file))
+
+
+def read_scope_trace_csv_values(tmstp: pd.Timestamp, path: Path,
+                                strftime: str = '%Y_%m_%d_%H.%M.%S', **csv_kwargs):
+    scope_trace = read_scope_trace_csv(tmstp, path, strftime, **csv_kwargs)
     if scope_trace is None:
         return None
     if scope_trace.shape[0] > 1:
@@ -53,15 +60,20 @@ def read_scope_trace_values(tmstp: pd.Timestamp, path: Path,
         return scope_trace
 
 
-def _get_scope_traces_index(tmstps, path: Path, strftime: str = '%Y_%m_%d_%H.%M.%S', **csv_kwargs):
+def _get_scope_traces_index_csv(tmstps, path: Path, strftime: str = '%Y_%m_%d_%H.%M.%S', **csv_kwargs):
     for tmstp in tmstps:
-        trace = read_scope_trace(tmstp, path, strftime, **csv_kwargs)
+        trace = read_scope_trace_csv(tmstp, path, strftime, **csv_kwargs)
         if trace is not None:
             return trace.index
 
+def find_valid_trace(path):
+    traces_path = path / 'Scope Traces'
+    for file in path.glob("*.trc"):
+        return "trc"
+
 
 def initialize_traces(tmstps, path: Path, strftime: str = '%Y_%m_%d_%H.%M.%S', **csv_kwargs):
-    time = _get_scope_traces_index(tmstps, path, strftime, **csv_kwargs)
+    time = _get_scope_traces_index_csv(tmstps, path, strftime, **csv_kwargs)
     if time is None:
         return None
     shape = (len(tmstps), time.size)
@@ -84,7 +96,7 @@ def get_traces(tmstps, path: Path, strftime: str = '%Y_%m_%d_%H.%M.%S', csv_kwar
     if scope_traces is None:
         return None
     for tmstp in custom_tqdm(tmstps, interface, 'load scope traces', leave=True):
-        trace = read_scope_trace_values(tmstp, path, strftime, **fast_csv_kwargs)
+        trace = read_scope_trace_csv_values(tmstp, path, strftime, **fast_csv_kwargs)
         scope_traces.loc[{'tmstp': tmstp}] = trace
     return scope_traces
 

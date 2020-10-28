@@ -160,8 +160,8 @@ class OldStructure:
     def get_images(self, tmstps):
         return get_images(tmstps, self._path, self.strftime, self.interface)
 
-    def read_scope_trace(self, tmstp):
-        return read_scope_trace(tmstp, self._path, self.strftime, **self.csv_kwargs)
+    def read_scope_trace_csv(self, tmstp):
+        return read_scope_trace_csv(tmstp, self._path, self.strftime, **self.csv_kwargs)
 
     def get_traces(self, tmstps):
         return get_traces(tmstps, self._path, self.strftime, self.csv_kwargs, self.fast_csv_kwargs,
