@@ -60,6 +60,8 @@ class PeaksSummaryAccessor:
         peak_df = pd.DataFrame()
         for shot in tqdm(index):
             trace = traces.sel({traces.ryd_data.shot_or_tmstp: shot})
+            if len(index.names) == 1:
+                shot = [shot]
             df = trace.peaks.get_peak_description(height, prominence, threshold, distance, width, sign=-1)
             df.index = pd.MultiIndex.from_tuples([[i, *shot] for i in range(df.shape[0])],
                                                  names=["peak_number", *index.names])

@@ -29,7 +29,10 @@ class LiveAnalysis:
         self.summary = xr.concat([self.summary, new_summary], dim="shot")
 
     def fit_images(self, data):
-        t_exp = data.parameters.sel(param_dim="tCAM", drop=True) * 1e3
+        try:
+            t_exp = data.parameters.sel(param_dim="tCAM", drop=True) * 1e3
+        except AttributeError:
+            t_exp = 0
         images = data.drop_vars("parameters").drop_dims("param_dim")
         return self.image_parameters.analyse_images(images, t_exp)
 

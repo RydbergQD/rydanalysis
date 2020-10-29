@@ -13,7 +13,7 @@ import os
 import time
 
 os.environ['PREFECT__LOGGING__LEVEL'] = "ERROR"
-os.environ["PATH"] += os.pathsep + 'C:/Program Files (x86)/Graphviz/bin/'
+# os.environ["PATH"] += os.pathsep + 'C:/Program Files (x86)/Graphviz/bin/'
 
 import streamlit as st
 from rydanalysis.auxiliary.streamlit_utils.st_state_patch import get as get_session_state

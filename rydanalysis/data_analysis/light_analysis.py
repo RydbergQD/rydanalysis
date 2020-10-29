@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.constants import c, h, epsilon_0, hbar
 import xarray as xr
+from typing import Optional
 
 from rydanalysis.data_analysis.dipole_transition import DipoleTransition
 
@@ -9,7 +10,7 @@ class LightAnalysis:
     QUANTUM_EFFICIENCY = 0.44
     SINGLE_PIXEL_SIZE = 2.09e-6
 
-    def __init__(self, light_images, t_exp,
+    def __init__(self, light_images, t_exp=Optional[float],
                  transition=DipoleTransition(), binning=2):
         """
 
@@ -47,7 +48,8 @@ class LightAnalysis:
 
     @property
     def intensity(self):
-        return get_intensity(self.light_images, self.t_exp, self.QUANTUM_EFFICIENCY, self.transition, self.pixel_size)
+        return get_intensity(self.light_images, self.t_exp, self.QUANTUM_EFFICIENCY,
+                             self.transition, self.pixel_size)
 
     @property
     def field_strength(self):
@@ -60,21 +62,26 @@ class LightAnalysis:
 
     @property
     def saturation_parameter(self):
+        if self.t_exp is None:
+            return 0
         decay_rate = self.transition.decay_rate
         return 2 * (self.rabi_frequency / decay_rate)**2
 
     @property
     def average_saturation(self):
         light = self.light_images.mean(['x', 'y'])
-        return get_saturation_parameter(light, self.t_exp, self.QUANTUM_EFFICIENCY, self.transition, self.pixel_size)
+        return get_saturation_parameter(light, self.t_exp, self.QUANTUM_EFFICIENCY, self.transition,
+                                        self.pixel_size)
 
 
-def get_power(images, t_exp, quantum_efficiency=LightAnalysis.QUANTUM_EFFICIENCY, transition=DipoleTransition()):
+def get_power(images, t_exp, quantum_efficiency=LightAnalysis.QUANTUM_EFFICIENCY,
+              transition=DipoleTransition()):
     frequency = transition.frequency
     return h * frequency * images / (quantum_efficiency * t_exp)
 
 
-def get_intensity(images, t_exp, quantum_efficiency=LightAnalysis.QUANTUM_EFFICIENCY, transition=DipoleTransition(),
+def get_intensity(images, t_exp, quantum_efficiency=LightAnalysis.QUANTUM_EFFICIENCY,
+                  transition=DipoleTransition(),
                   pixel_size=LightAnalysis.SINGLE_PIXEL_SIZE):
     power = get_power(images, t_exp, quantum_efficiency, transition)
     return power / pixel_size**2
@@ -93,8 +100,12 @@ def get_rabi_frequency(images, t_exp, quantum_efficiency=LightAnalysis.QUANTUM_E
     return dipole_matrix_element * field_strength / hbar
 
 
-def get_saturation_parameter(images, t_exp, quantum_efficiency=LightAnalysis.QUANTUM_EFFICIENCY,
-                             transition=DipoleTransition(), pixel_size=LightAnalysis.SINGLE_PIXEL_SIZE):
+def get_saturation_parameter(images, t_exp=Optional[float],
+                             quantum_efficiency=LightAnalysis.QUANTUM_EFFICIENCY,
+                             transition=DipoleTransition(),
+                             pixel_size=LightAnalysis.SINGLE_PIXEL_SIZE):
+    if t_exp is None:
+        return 0
     decay_rate = transition.decay_rate
     rabi_frequency = get_rabi_frequency(images, t_exp, quantum_efficiency, transition, pixel_size)
     return 2 * (rabi_frequency / decay_rate)**2

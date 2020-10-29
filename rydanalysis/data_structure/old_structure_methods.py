@@ -6,7 +6,8 @@ from pathlib import Path
 import astropy.io.fits
 import numpy as np
 import xarray as xr
-from rydanalysis.auxiliary.user_input import custom_tqdm, custom_output
+from rydanalysis.auxiliary.user_input import custom_tqdm
+
 
 # Get parameters
 
@@ -29,6 +30,7 @@ def get_parameters(tmstps, path: Path, strftime: str = '%Y_%m_%d_%H.%M.%S', **cs
     _parameters.columns.name = "param_dim"
     return _parameters
 
+
 # Read scope traces
 
 
@@ -40,14 +42,8 @@ def read_scope_trace_csv(tmstp: pd.Timestamp, path: Path,
         pass
     try:
         return pd.read_csv(file, **csv_kwargs)
-    except:
+    except OSError:
         pass
-
-
-def read_scope_trace_trc(tmstp, path, strftime: str = '%Y_%m_%d_%H.%M.%S'):
-    traces_path = path / 'Scope Traces'
-    file = traces_path / tmstp.strftime("C3" + strftime + '00000.trc')
-    data = lecroyparser.ScopeData(str(file))
 
 
 def read_scope_trace_csv_values(tmstp: pd.Timestamp, path: Path,
@@ -60,20 +56,47 @@ def read_scope_trace_csv_values(tmstp: pd.Timestamp, path: Path,
         return scope_trace
 
 
-def _get_scope_traces_index_csv(tmstps, path: Path, strftime: str = '%Y_%m_%d_%H.%M.%S', **csv_kwargs):
+def _get_scope_traces_index_csv(tmstps, path: Path, strftime: str = '%Y_%m_%d_%H.%M.%S',
+                                **csv_kwargs):
     for tmstp in tmstps:
         trace = read_scope_trace_csv(tmstp, path, strftime, **csv_kwargs)
         if trace is not None:
-            return trace.index
+            return trace.index.values
 
-def find_valid_trace(path):
+
+def read_scope_trace_trc(tmstp, path, strftime: str = '%Y_%m_%d_%H.%M.%S', channel="C3"):
     traces_path = path / 'Scope Traces'
-    for file in path.glob("*.trc"):
-        return "trc"
+    file = traces_path / tmstp.strftime(channel + strftime + '00000.trc')
+    try:
+        return lecroyparser.ScopeData(str(file))
+    except FileNotFoundError:
+        return None
 
 
-def initialize_traces(tmstps, path: Path, strftime: str = '%Y_%m_%d_%H.%M.%S', **csv_kwargs):
-    time = _get_scope_traces_index_csv(tmstps, path, strftime, **csv_kwargs)
+def read_scope_trace_trc_values(tmstp, path, strftime: str = '%Y_%m_%d_%H.%M.%S', channel="C3"):
+    data = read_scope_trace_trc(tmstp, path, strftime, channel)
+    if data is not None:
+        return data.y.astype(np.float16)
+
+
+def read_scope_trace_trc_index(tmstps, path, strftime: str = '%Y_%m_%d_%H.%M.%S', channel="C3"):
+    for tmstp in tmstps:
+        data = read_scope_trace_trc(tmstp, path, strftime, channel)
+        if data is not None:
+            return data.x
+
+
+def find_valid_trace(path: Path):
+    traces_path = path / 'Scope Traces'
+    for file in traces_path.glob("*.trc"):
+        channel = file.name[:2]
+        return "trc", channel
+    for file in traces_path.glob("_C1.csv"):
+        channel = file.stem[-2:]
+        return "csv", channel
+
+
+def initialize_traces(tmstps, time):
     if time is None:
         return None
     shape = (len(tmstps), time.size)
@@ -81,22 +104,44 @@ def initialize_traces(tmstps, path: Path, strftime: str = '%Y_%m_%d_%H.%M.%S', *
     scope_traces = xr.DataArray(
         np.full(shape, np.NaN, dtype=np.float32),
         dims=['tmstp', 'time'],
-        coords={'tmstp': tmstps, 'time': time.values}
+        coords={'tmstp': tmstps, 'time': time},
     )
     return scope_traces
 
 
 def get_traces(tmstps, path: Path, strftime: str = '%Y_%m_%d_%H.%M.%S', csv_kwargs=None,
                fast_csv_kwargs=None, interface="notebook"):
+    method, channel = find_valid_trace(path)
+    if method == "csv":
+        return get_traces_csv(tmstps, path, strftime, csv_kwargs, fast_csv_kwargs, interface)
+    else:
+        return get_traces_trc(tmstps, path, strftime, channel, interface)
+
+
+def get_traces_csv(tmstps, path: Path, strftime: str = '%Y_%m_%d_%H.%M.%S', csv_kwargs=None,
+                   fast_csv_kwargs=None, interface="notebook"):
     if csv_kwargs is None:
         csv_kwargs = dict(index_col=0, squeeze=True, sep='\t', decimal=',', header=None)
     if fast_csv_kwargs is None:
         fast_csv_kwargs = dict(usecols=[1], squeeze=True, sep='\t', decimal=',', header=None)
-    scope_traces = initialize_traces(tmstps, path, strftime, **csv_kwargs)
+    time = _get_scope_traces_index_csv(tmstps, path, strftime, **csv_kwargs)
+    scope_traces = initialize_traces(tmstps, time)
     if scope_traces is None:
         return None
     for tmstp in custom_tqdm(tmstps, interface, 'load scope traces', leave=True):
         trace = read_scope_trace_csv_values(tmstp, path, strftime, **fast_csv_kwargs)
+        scope_traces.loc[{'tmstp': tmstp}] = trace
+    return scope_traces
+
+
+def get_traces_trc(tmstps, path: Path, strftime: str = '%Y_%m_%d_%H.%M.%S', channel="C3",
+                   interface="notebook"):
+    time = read_scope_trace_trc_index(tmstps, path, strftime, channel)
+    scope_traces = initialize_traces(tmstps, time)
+    if scope_traces is None:
+        return None
+    for tmstp in custom_tqdm(tmstps, interface, 'load scope traces', leave=True):
+        trace = read_scope_trace_trc_values(tmstp, path, strftime, channel)
         scope_traces.loc[{'tmstp': tmstp}] = trace
     return scope_traces
 
