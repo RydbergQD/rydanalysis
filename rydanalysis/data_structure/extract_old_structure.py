@@ -5,6 +5,7 @@ from shutil import copy
 from typing import Dict, Optional, Iterable, Union
 
 from .old_structure_methods import *
+from rydanalysis.auxiliary.user_input import custom_output
 
 
 @dataclass
@@ -220,7 +221,9 @@ def get_existing_tmstps(destiny_path: Path) -> Iterable[pd.DatetimeIndex]:
 
 def compare_tmstps(new_tmstps, old_tmstps):
     new_tmstps = set(new_tmstps)
-    return list(new_tmstps.difference(old_tmstps))
+    tmstp = list(new_tmstps.difference(old_tmstps))
+    tmstp.sort()
+    return tmstp
 
 
 def load_data(path, lazy=False, to_multiindex=True):
