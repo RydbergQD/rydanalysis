@@ -86,12 +86,12 @@ def read_scope_trace_trc_index(tmstps, path, strftime: str = '%Y_%m_%d_%H.%M.%S'
             return data.x
 
 
-def find_valid_trace(path: Path):
+def find_valid_trace(path):
     traces_path = path / 'Scope Traces'
     for file in traces_path.glob("*.trc"):
         channel = file.name[:2]
         return "trc", channel
-    for file in traces_path.glob("_C1.csv"):
+    for file in traces_path.glob("*_C1.csv"):
         channel = file.stem[-2:]
         return "csv", channel
 
@@ -111,7 +111,11 @@ def initialize_traces(tmstps, time):
 
 def get_traces(tmstps, path: Path, strftime: str = '%Y_%m_%d_%H.%M.%S', csv_kwargs=None,
                fast_csv_kwargs=None, interface="notebook"):
-    method, channel = find_valid_trace(path)
+    if csv_kwargs is None:
+        csv_kwargs = dict(index_col=0, squeeze=True, sep='\t', decimal=',', header=None)
+    if fast_csv_kwargs is None:
+        fast_csv_kwargs = dict(usecols=[1], squeeze=True, sep='\t', decimal=',', header=None)
+    method, channel = find_valid_trace(Path(path))
     if method == "csv":
         return get_traces_csv(tmstps, path, strftime, csv_kwargs, fast_csv_kwargs, interface)
     else:
