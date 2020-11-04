@@ -56,8 +56,6 @@ def main():
     # Display the selected page with the session state
     pages[page](old_structure, raw_data, analyzer)
 
-    time.sleep(1)
-    st.experimental_rerun()
 
 
 if __name__ == "__main__":

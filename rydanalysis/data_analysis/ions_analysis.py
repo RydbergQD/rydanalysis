@@ -54,7 +54,7 @@ class PeaksSummaryAccessor:
         integral.name = 'ionsInt'
         return integral
 
-    def get_peak_description(self, height=0, prominence=0, threshold=0, distance=0, width=0, sign=-1):
+    def get_peak_description(self, height=0.007, prominence=None, threshold=None, distance=None, width=2e-9, sign=-1):
         traces = self.traces
         index = traces.ryd_data.index
         peak_df = pd.DataFrame()
