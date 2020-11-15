@@ -140,37 +140,30 @@ class OldStructure:
             copy(file, destiny_path / "Voltages")
 
     def extract_tmstps(self):
-        path = self._path / 'Variables'
-        tmstps = []
-        for sub_path in path.glob(self.filename_pattern + ".txt"):
-            try:
-                tmstps.append(pd.to_datetime(sub_path.name, format=self.strftime + '.txt'))
-            except ValueError:
-                print("couldn't read {0}. Skipping this file...".format(sub_path.name))
-        return tmstps
+        return extract_tmstps(self._path, self.filename_pattern, self.strftime)
 
-    def read_parameters(self, tmstp):
-        return read_parameters(tmstp, self._path, self.strftime, **self.csv_kwargs)
+    def read_parameters_single(self, tmstp):
+        return read_parameters_single(tmstp, self._path, self.strftime, **self.csv_kwargs)
 
-    def get_parameters(self, tmstps):
+    def read_parameters(self, tmstps):
         return read_parameters(tmstps, self._path, self.strftime, **self.csv_kwargs)
 
     def read_image(self, tmstp):
         return read_image(tmstp, self._path, self.strftime)
 
-    def get_images(self, tmstps):
-        return get_images(tmstps, self._path, self.strftime, self.interface)
+    def read_images(self, tmstps):
+        return read_images(tmstps, self._path, self.strftime, self.interface)
 
-    def read_scope_trace_csv(self, tmstp):
-        return read_scope_trace_csv(tmstp, self._path, self.strftime, **self.csv_kwargs)
+    def read_trace_csv(self, tmstp):
+        return read_trace_csv(tmstp, self._path, self.strftime, **self.csv_kwargs)
 
-    def get_traces(self, tmstps):
-        return get_traces(tmstps, self._path, self.strftime, self.csv_kwargs, self.fast_csv_kwargs,
-                          self.interface)
+    def read_traces(self, tmstps):
+        return read_traces(tmstps, self._path, self.strftime, self.csv_kwargs, self.fast_csv_kwargs,
+                           self.interface)
 
-    def get_raw_data(self, tmstps):
-        return get_raw_data(tmstps, self._path, self.strftime, self.csv_kwargs,
-                            self.fast_csv_kwargs, self.interface)
+    def read_raw_data(self, tmstps):
+        return read_raw_data(tmstps, self._path, self.strftime, self.csv_kwargs,
+                             self.fast_csv_kwargs, self.interface)
 
     def get_chunks(self, tmstps):
         if not self.chunk_size:
@@ -195,7 +188,7 @@ class OldStructure:
 
         chunks = self.get_chunks(tmstps)
         for chunk in custom_tqdm(chunks, self.interface, "Iterate chunks", leave=True):
-            raw_data = self.get_raw_data(chunk)
+            raw_data = self.read_raw_data(chunk)
             tmstp = pd.Timestamp(str(chunk[0]))
             name = tmstp.strftime(self.strftime)
             raw_data.to_netcdf(destiny_path / ("raw_data_batch" + name + ".h5"))
@@ -206,7 +199,7 @@ class OldStructure:
         if len(tmstps) > self.chunk_size:
             raise ResourceWarning("Your dataset is larger than the batch_size. Consider saving"
                                   " the data using 'save data' or increase the batch_size.")
-        raw_data = self.get_raw_data(tmstps)
+        raw_data = self.read_raw_data(tmstps)
         return raw_data_to_multiindex(raw_data)
 
 

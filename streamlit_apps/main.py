@@ -37,7 +37,7 @@ def main():
 
     @st.cache(allow_output_mutation=True)
     def get_old_structure():
-        return OldStructure(get_default_path(), interface="streamlit")
+        return OldStructure(get_default_path(), interface="streamlit", )
     old_structure = get_old_structure()
 
     @st.cache(allow_output_mutation=True)

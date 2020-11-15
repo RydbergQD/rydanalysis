@@ -11,9 +11,19 @@ from rydanalysis.auxiliary.user_input import custom_tqdm
 
 # Get parameters
 
+def extract_tmstps(_path, filename_pattern: str = '????_??_??_??.??.??', strftime: str = '%Y_%m_%d_%H.%M.%S'):
+    path = _path / 'Variables'
+    tmstps = []
+    for sub_path in path.glob(filename_pattern + ".txt"):
+        try:
+            tmstps.append(pd.to_datetime(sub_path.name, format=strftime + '.txt'))
+        except ValueError:
+            print("couldn't read {0}. Skipping this file...".format(sub_path.name))
+    return tmstps
 
-def read_parameters(tmstp: pd.Timestamp, path: Path,
-                    strftime: str = '%Y_%m_%d_%H.%M.%S', **csv_kwargs) -> pd.Series:
+
+def read_parameters_single(tmstp: pd.Timestamp, path: Path,
+                           strftime: str = '%Y_%m_%d_%H.%M.%S', **csv_kwargs) -> pd.Series:
     parameter_path = path / 'Variables' / tmstp.strftime(strftime + '.txt')
     parameters = pd.read_csv(parameter_path, **csv_kwargs)
     parameters.name = tmstp
@@ -22,8 +32,8 @@ def read_parameters(tmstp: pd.Timestamp, path: Path,
     return parameters
 
 
-def get_parameters(tmstps, path: Path, strftime: str = '%Y_%m_%d_%H.%M.%S', **csv_kwargs):
-    _parameters = [read_parameters(tmstp, path, strftime, **csv_kwargs) for tmstp in tmstps]
+def read_parameters(tmstps, path: Path, strftime: str = '%Y_%m_%d_%H.%M.%S', **csv_kwargs):
+    _parameters = [read_parameters_single(tmstp, path, strftime, **csv_kwargs) for tmstp in tmstps]
     _parameters = pd.concat(_parameters, axis=1)
     _parameters = _parameters.T
     _parameters.index.name = 'tmstp'
@@ -34,8 +44,8 @@ def get_parameters(tmstps, path: Path, strftime: str = '%Y_%m_%d_%H.%M.%S', **cs
 # Read scope traces
 
 
-def read_scope_trace_csv(tmstp: pd.Timestamp, path: Path,
-                         strftime: str = '%Y_%m_%d_%H.%M.%S', **csv_kwargs):
+def read_trace_csv(tmstp: pd.Timestamp, path: Path,
+                   strftime: str = '%Y_%m_%d_%H.%M.%S', **csv_kwargs):
     traces_path = path / 'Scope Traces'
     file = traces_path / tmstp.strftime(strftime + '_C1.csv')
     if not file.is_file():
@@ -46,9 +56,9 @@ def read_scope_trace_csv(tmstp: pd.Timestamp, path: Path,
         pass
 
 
-def read_scope_trace_csv_values(tmstp: pd.Timestamp, path: Path,
-                                strftime: str = '%Y_%m_%d_%H.%M.%S', **csv_kwargs):
-    scope_trace = read_scope_trace_csv(tmstp, path, strftime, **csv_kwargs)
+def read_trace_csv_values(tmstp: pd.Timestamp, path: Path,
+                          strftime: str = '%Y_%m_%d_%H.%M.%S', **csv_kwargs):
+    scope_trace = read_trace_csv(tmstp, path, strftime, **csv_kwargs)
     if scope_trace is None:
         return None
     if scope_trace.shape[0] > 1:
@@ -56,15 +66,15 @@ def read_scope_trace_csv_values(tmstp: pd.Timestamp, path: Path,
         return scope_trace
 
 
-def _get_scope_traces_index_csv(tmstps, path: Path, strftime: str = '%Y_%m_%d_%H.%M.%S',
-                                **csv_kwargs):
+def read_traces_index_csv(tmstps, path: Path, strftime: str = '%Y_%m_%d_%H.%M.%S',
+                          **csv_kwargs):
     for tmstp in tmstps:
-        trace = read_scope_trace_csv(tmstp, path, strftime, **csv_kwargs)
+        trace = read_trace_csv(tmstp, path, strftime, **csv_kwargs)
         if trace is not None:
             return trace.index.values
 
 
-def read_scope_trace_trc(tmstp, path, strftime: str = '%Y_%m_%d_%H.%M.%S', channel="C3"):
+def read_trace_trc(tmstp, path, strftime: str = '%Y_%m_%d_%H.%M.%S', channel="C3"):
     traces_path = path / 'Scope Traces'
     file = traces_path / tmstp.strftime(channel + strftime + '00000.trc')
     try:
@@ -74,14 +84,14 @@ def read_scope_trace_trc(tmstp, path, strftime: str = '%Y_%m_%d_%H.%M.%S', chann
 
 
 def read_scope_trace_trc_values(tmstp, path, strftime: str = '%Y_%m_%d_%H.%M.%S', channel="C3"):
-    data = read_scope_trace_trc(tmstp, path, strftime, channel)
+    data = read_trace_trc(tmstp, path, strftime, channel)
     if data is not None:
         return data.y.astype(np.float16)
 
 
-def read_scope_trace_trc_index(tmstps, path, strftime: str = '%Y_%m_%d_%H.%M.%S', channel="C3"):
+def read_traces_index_trc(tmstps, path, strftime: str = '%Y_%m_%d_%H.%M.%S', channel="C3"):
     for tmstp in tmstps:
-        data = read_scope_trace_trc(tmstp, path, strftime, channel)
+        data = read_trace_trc(tmstp, path, strftime, channel)
         if data is not None:
             return data.x
 
@@ -109,43 +119,46 @@ def initialize_traces(tmstps, time):
     return scope_traces
 
 
-def get_traces(tmstps, path: Path, strftime: str = '%Y_%m_%d_%H.%M.%S', csv_kwargs=None,
-               fast_csv_kwargs=None, interface="notebook"):
+def read_traces(tmstps, path: Path, strftime: str = '%Y_%m_%d_%H.%M.%S', csv_kwargs=None,
+                fast_csv_kwargs=None, interface="notebook"):
     if csv_kwargs is None:
         csv_kwargs = dict(index_col=0, squeeze=True, sep='\t', decimal=',', header=None)
     if fast_csv_kwargs is None:
         fast_csv_kwargs = dict(usecols=[1], squeeze=True, sep='\t', decimal=',', header=None)
     method, channel = find_valid_trace(Path(path))
     if method == "csv":
-        return get_traces_csv(tmstps, path, strftime, csv_kwargs, fast_csv_kwargs, interface)
+        return read_traces_csv(tmstps, path, strftime, csv_kwargs, fast_csv_kwargs, interface)
     else:
-        return get_traces_trc(tmstps, path, strftime, channel, interface)
+        return read_traces_trc(tmstps, path, strftime, channel, interface)
 
 
-def get_traces_csv(tmstps, path: Path, strftime: str = '%Y_%m_%d_%H.%M.%S', csv_kwargs=None,
-                   fast_csv_kwargs=None, interface="notebook"):
+def read_traces_csv(tmstps, path: Path, strftime: str = '%Y_%m_%d_%H.%M.%S', csv_kwargs=None,
+                    fast_csv_kwargs=None, interface="notebook"):
     if csv_kwargs is None:
         csv_kwargs = dict(index_col=0, squeeze=True, sep='\t', decimal=',', header=None)
     if fast_csv_kwargs is None:
         fast_csv_kwargs = dict(usecols=[1], squeeze=True, sep='\t', decimal=',', header=None)
-    time = _get_scope_traces_index_csv(tmstps, path, strftime, **csv_kwargs)
+    time = read_traces_index_csv(tmstps, path, strftime, **csv_kwargs)
     scope_traces = initialize_traces(tmstps, time)
     if scope_traces is None:
         return None
     for tmstp in custom_tqdm(tmstps, interface, 'load scope traces', leave=True):
-        trace = read_scope_trace_csv_values(tmstp, path, strftime, **fast_csv_kwargs)
+        trace = read_trace_csv_values(tmstp, path, strftime, **fast_csv_kwargs)
         scope_traces.loc[{'tmstp': tmstp}] = trace
     return scope_traces
 
 
-def get_traces_trc(tmstps, path: Path, strftime: str = '%Y_%m_%d_%H.%M.%S', channel="C3",
-                   interface="notebook"):
-    time = read_scope_trace_trc_index(tmstps, path, strftime, channel)
+def read_traces_trc(tmstps, path: Path, strftime: str = '%Y_%m_%d_%H.%M.%S', channel="C3",
+                    interface="notebook"):
+    time = read_traces_index_trc(tmstps, path, strftime, channel)
     scope_traces = initialize_traces(tmstps, time)
     if scope_traces is None:
         return None
     for tmstp in custom_tqdm(tmstps, interface, 'load scope traces', leave=True):
-        trace = read_scope_trace_trc_values(tmstp, path, strftime, channel)
+        try:
+            trace = read_scope_trace_trc_values(tmstp, path, strftime, channel)
+        except ValueError:
+            continue
         scope_traces.loc[{'tmstp': tmstp}] = trace
     return scope_traces
 
@@ -162,7 +175,7 @@ def read_image(tmstp: pd.Timestamp, path: Path, strftime: str = '%Y_%m_%d_%H.%M.
             return np.transpose(data, axes=[0, 2, 1])
 
 
-def _get_image_coords(image, sensor_widths: Tuple[int, int] = (1100, 214)):
+def read_image_coords(image, sensor_widths: Tuple[int, int] = (1100, 214)):
     n_images, n_pixel_x, n_pixel_y = image.shape
     sensor_width_x, sensor_width_y = sensor_widths
     sensor_width_x *= 1 - 1 / n_pixel_x
@@ -184,7 +197,7 @@ def find_first_image(tmstps: List[pd.Timestamp], path: Path, strftime: str = '%Y
 def initialize_images(tmstps: List[pd.Timestamp], path: Path, strftime: str = '%Y_%m_%d_%H.%M.%S'):
     try:
         image = find_first_image(tmstps, path, strftime)
-        image_names, x, y = _get_image_coords(image)
+        image_names, x, y = read_image_coords(image)
     except AttributeError:
         return None
     shape = (len(tmstps), len(x), len(y))
@@ -197,8 +210,8 @@ def initialize_images(tmstps: List[pd.Timestamp], path: Path, strftime: str = '%
     return images
 
 
-def get_images(tmstps: List[pd.Timestamp], path: Path, strftime: str = '%Y_%m_%d_%H.%M.%S',
-               interface: str = "tqdm"):
+def read_images(tmstps: List[pd.Timestamp], path: Path, strftime: str = '%Y_%m_%d_%H.%M.%S',
+                interface: str = "tqdm"):
     images = initialize_images(tmstps, path, strftime)
     if not images:
         return None
@@ -214,16 +227,16 @@ def get_images(tmstps: List[pd.Timestamp], path: Path, strftime: str = '%Y_%m_%d
 # Get raw data
 
 
-def get_raw_data(tmstps: List[pd.Timestamp], path: Path, strftime: str = '%Y_%m_%d_%H.%M.%S',
-                 csv_kwargs=None, fast_csv_kwargs=None, interface: str = "notebook"):
+def read_raw_data(tmstps: List[pd.Timestamp], path: Path, strftime: str = '%Y_%m_%d_%H.%M.%S',
+                  csv_kwargs=None, fast_csv_kwargs=None, interface: str = "notebook"):
     raw_data = xr.Dataset()
-    images = get_images(tmstps, path, strftime, interface)
+    images = read_images(tmstps, path, strftime, interface)
     if images is not None:
         raw_data = xr.merge([raw_data, images])
-    traces = get_traces(tmstps, path, strftime, csv_kwargs, fast_csv_kwargs, interface)
+    traces = read_traces(tmstps, path, strftime, csv_kwargs, fast_csv_kwargs, interface)
     if traces is not None:
         raw_data['scope_traces'] = traces
-    raw_data["parameters"] = get_parameters(tmstps, path, strftime, **csv_kwargs)
+    raw_data["parameters"] = read_parameters(tmstps, path, strftime, **csv_kwargs)
     return raw_data
 
 

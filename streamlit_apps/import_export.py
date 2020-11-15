@@ -24,6 +24,8 @@ def page_import_export(old_structure: OldStructure, raw_data: None, analyzer: Li
     st.file_uploader("load import/export settings. ")
     expander = st.beta_expander("Set import options", expanded=True)
     with expander:
+        old_structure.chunk_size = st.number_input("Set chunk size:", min_value=1,
+                                                   value=old_structure.chunk_size, step=1)
         streamlit_set_path(old_structure)
 
     expander = st.beta_expander("Set export options", expanded=True)
