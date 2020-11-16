@@ -1,13 +1,17 @@
 import datetime
 import os
 from dataclasses import dataclass, field, InitVar
+from pathlib import Path
 from shutil import copy
-from typing import Dict, Optional, Iterable, Union
+from typing import Dict, Optional, Union, Tuple
 
-import dask
+import pandas as pd
 
-from .old_structure_methods import *
-from rydanalysis.auxiliary.user_input import custom_output
+from rydanalysis.auxiliary.user_input import custom_output, custom_tqdm
+from .extract_data import read_tmstps_txt, read_parameters, read_parameters_single, read_raw_data, \
+    read_tmstps_h5, compare_tmstps, raw_data_to_multiindex
+from .read_images import read_images, read_image
+from .read_traces import read_traces, read_trace_csv
 
 
 @dataclass
@@ -142,7 +146,7 @@ class OldStructure:
             copy(file, destiny_path / "Voltages")
 
     def extract_tmstps(self):
-        return extract_tmstps(self._path, self.filename_pattern, self.strftime)
+        return read_tmstps_txt(self._path, self.filename_pattern, self.strftime)
 
     def read_parameters_single(self, tmstp):
         return read_parameters_single(tmstp, self._path, self.strftime, **self.csv_kwargs)
@@ -179,7 +183,7 @@ class OldStructure:
         tmstps = self.extract_tmstps()
 
         if append:
-            old_tmstps = get_existing_tmstps(destiny_path)
+            old_tmstps = read_tmstps_h5(destiny_path)
             tmstps = compare_tmstps(tmstps, old_tmstps)
         else:
             for f in destiny_path.glob('*.h5'):
@@ -203,34 +207,6 @@ class OldStructure:
                                   " the data using 'save data' or increase the batch_size.")
         raw_data = self.read_raw_data(tmstps)
         return raw_data_to_multiindex(raw_data)
-
-
-def get_existing_tmstps(destiny_path: Path) -> Iterable[pd.DatetimeIndex]:
-    try:
-        data = load_data(destiny_path, lazy=True, to_multiindex=False)
-        tmstps = map(pd.to_datetime, data.tmstp.values)
-        return tmstps
-    except OSError:
-        return []
-
-
-def compare_tmstps(new_tmstps, old_tmstps):
-    new_tmstps = set(new_tmstps)
-    tmstp = list(new_tmstps.difference(old_tmstps))
-    tmstp.sort()
-    return tmstp
-
-
-def load_data(path, lazy=None, to_multiindex=True):
-    with dask.config.set(**{'array.slicing.split_large_chunks': False}):
-        data = xr.open_mfdataset(path.glob("*.h5"), join="left", data_vars="minimal", chunks={"tmstp": 1})
-    if lazy is None:
-        lazy = len(data.tmstp) > 500
-    if not lazy:
-        data = data.load()
-    if to_multiindex:
-        data = raw_data_to_multiindex(data)
-    return data
 
 
 def get_date_from_path(path, date_strftime='%Y_%m_%d'):
