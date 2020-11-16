@@ -9,17 +9,11 @@ run in terminal:
 
 The last number is the maximally allowed size for uploading raw_data in MBy
 """
-import os
-import time
-
-os.environ['PREFECT__LOGGING__LEVEL'] = "ERROR"
-# os.environ["PATH"] += os.pathsep + 'C:/Program Files (x86)/Graphviz/bin/'
-
 import streamlit as st
-from rydanalysis.auxiliary.streamlit_utils.st_state_patch import get as get_session_state
 from rydanalysis.data_structure.extract_old_structure import OldStructure
 from rydanalysis.sequence_analysis import LiveAnalysis
 from streamlit_apps.import_export import page_import_export, get_default_path
+from rydanalysis.auxiliary.streamlit_utils.st_state_patch import get_state
 
 
 def page_set_analysis_parameters(
@@ -30,20 +24,9 @@ def page_set_analysis_parameters(
 
 
 def main():
-    @st.cache(allow_output_mutation=True)
-    def get_raw_data():
-        return [None]
-    raw_data = get_raw_data()
-
-    @st.cache(allow_output_mutation=True)
-    def get_old_structure():
-        return OldStructure(get_default_path(), interface="streamlit", )
-    old_structure = get_old_structure()
-
-    @st.cache(allow_output_mutation=True)
-    def get_analyzer():
-        return LiveAnalysis()
-    analyzer = get_analyzer()
+    state = get_state()
+    if not state.old_structure:
+        state.old_structure = OldStructure(get_default_path(), interface="streamlit", chunk_size=100)
 
     pages = {
         "Import and export data": page_import_export,
@@ -54,8 +37,10 @@ def main():
     page = st.sidebar.radio("Select your page", tuple(pages.keys()))
 
     # Display the selected page with the session state
-    pages[page](old_structure, raw_data, analyzer)
+    pages[page](state)
 
+    # Mandatory to avoid rollbacks with widgets, must be called at the end of your app
+    state.sync()
 
 
 if __name__ == "__main__":

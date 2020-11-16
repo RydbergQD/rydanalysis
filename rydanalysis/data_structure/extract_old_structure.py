@@ -4,6 +4,8 @@ from dataclasses import dataclass, field, InitVar
 from shutil import copy
 from typing import Dict, Optional, Iterable, Union
 
+import dask
+
 from .old_structure_methods import *
 from rydanalysis.auxiliary.user_input import custom_output
 
@@ -94,7 +96,7 @@ class OldStructure:
         else:
             custom_output(
                 'No experimental run was found on that date. Consider Changing the base path '
-                'or verify the date.')
+                'or verify the date.', interface=self.interface)
             return []
 
     @property
@@ -205,9 +207,9 @@ class OldStructure:
 
 def get_existing_tmstps(destiny_path: Path) -> Iterable[pd.DatetimeIndex]:
     try:
-        with xr.open_mfdataset(destiny_path.glob("*.h5"), concat_dim="tmstp") as data:
-            tmstps = map(pd.to_datetime, data.tmstp.values)
-            return tmstps
+        data = load_data(destiny_path, lazy=True, to_multiindex=False)
+        tmstps = map(pd.to_datetime, data.tmstp.values)
+        return tmstps
     except OSError:
         return []
 
@@ -219,11 +221,13 @@ def compare_tmstps(new_tmstps, old_tmstps):
     return tmstp
 
 
-def load_data(path, lazy=False, to_multiindex=True):
-    path = Path(path)
-    with xr.open_mfdataset(path.glob("*.h5"), concat_dim="tmstp") as data:
-        if not lazy:
-            data = data.load()
+def load_data(path, lazy=None, to_multiindex=True):
+    with dask.config.set(**{'array.slicing.split_large_chunks': False}):
+        data = xr.open_mfdataset(path.glob("*.h5"), join="left", data_vars="minimal", chunks={"tmstp": 1})
+    if lazy is None:
+        lazy = len(data.tmstp) > 500
+    if not lazy:
+        data = data.load()
     if to_multiindex:
         data = raw_data_to_multiindex(data)
     return data

@@ -56,15 +56,15 @@ class PeaksSummaryAccessor:
 
     def get_peak_description(self, height=0.007, prominence=None, threshold=None, distance=None, width=2e-9, sign=-1):
         traces = self.traces
-        index = traces.ryd_data.index
+        shot_or_tmstp = traces.ryd_data.shot_or_tmstp
         peak_df = pd.DataFrame()
-        for shot in tqdm(index):
-            trace = traces.sel({traces.ryd_data.shot_or_tmstp: shot})
-            if len(index.names) == 1:
+        index_names = traces.ryd_data.index.names
+        for shot, trace in tqdm(traces.groupby(shot_or_tmstp)):
+            if type(shot) is np.datetime64:
                 shot = [shot]
-            df = trace.peaks.get_peak_description(height, prominence, threshold, distance, width, sign=-1)
+            df = trace.peaks.get_peak_description(height, prominence, threshold, distance, width, sign=sign)
             df.index = pd.MultiIndex.from_tuples([[i, *shot] for i in range(df.shape[0])],
-                                                 names=["peak_number", *index.names])
+                                                 names=["peak_number", *index_names])
             peak_df = peak_df.append(df)
         return peak_df
 

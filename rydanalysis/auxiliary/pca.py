@@ -11,9 +11,9 @@ class PCAAccessor:
     def __call__(self, n_components=None, copy=True, whiten=False,
                  svd_solver='auto', tol=0.0, iterated_power='auto',
                  random_state=None):
-        pca = PCAXarray(n_components, copy, whiten,
-                        svd_solver, tol, iterated_power,
-                        random_state)
+        pca = PCAXarray(n_components, copy=copy, whiten=whiten,
+                        svd_solver=svd_solver, tol=tol, iterated_power=iterated_power,
+                        random_state=random_state)
         return pca.fit(self.reference_images)
 
     @classmethod
@@ -30,7 +30,8 @@ class PCAAccessor:
     def find_references(self, images, mask=None, n_components=None, copy=True, whiten=False,
                         svd_solver='auto', tol=0.0, iterated_power='auto',
                         random_state=None):
-        pca_ = self(n_components, copy, whiten, svd_solver, tol, iterated_power, random_state)
+        pca_ = self(n_components, copy=copy, whiten=whiten, svd_solver=svd_solver, tol=tol,
+                    iterated_power=iterated_power, random_state=random_state)
 
         return pca_.find_references(images, mask)
 
@@ -39,9 +40,9 @@ class PCAXarray(decomposition.PCA):
     def __init__(self, n_components=None, copy=True, whiten=False,
                  svd_solver='auto', tol=0.0, iterated_power='auto',
                  random_state=None):
-        super().__init__(n_components, copy, whiten,
-                         svd_solver, tol, iterated_power,
-                         random_state)
+        super().__init__(n_components, copy=copy, whiten=whiten,
+                         svd_solver=svd_solver, tol=tol, iterated_power=iterated_power,
+                         random_state=random_state)
         self._dims = ['shot', 'image_coords']
         self._coords = None
 
