@@ -9,7 +9,7 @@ import pandas as pd
 
 from rydanalysis.auxiliary.user_input import custom_output, custom_tqdm
 from .extract_data import read_tmstps_txt, read_parameters, read_parameters_single, read_raw_data, \
-    read_tmstps_h5, compare_tmstps, raw_data_to_multiindex
+    analyze_existing_h5, compare_tmstps, raw_data_to_multiindex, update_time
 from .read_images import read_images, read_image
 from .read_traces import read_traces, read_trace_csv
 
@@ -163,13 +163,13 @@ class OldStructure:
     def read_trace_csv(self, tmstp):
         return read_trace_csv(tmstp, self._path, self.strftime, **self.csv_kwargs)
 
-    def read_traces(self, tmstps):
-        return read_traces(tmstps, self._path, self.strftime, self.csv_kwargs, self.fast_csv_kwargs,
+    def read_traces(self, tmstps, times=None):
+        return read_traces(tmstps, self._path, times, self.strftime, self.csv_kwargs, self.fast_csv_kwargs,
                            self.interface)
 
-    def read_raw_data(self, tmstps):
+    def read_raw_data(self, tmstps, times=None):
         return read_raw_data(tmstps, self._path, self.strftime, self.csv_kwargs,
-                             self.fast_csv_kwargs, self.interface)
+                             self.fast_csv_kwargs, times=times, interface=self.interface)
 
     def get_chunks(self, tmstps):
         if not self.chunk_size:
@@ -180,10 +180,11 @@ class OldStructure:
 
     def save_data(self, destiny_path, append=True):
         destiny_path = Path(destiny_path)
-        tmstps = self.extract_tmstps()
 
+        tmstps = self.extract_tmstps()
+        times = None
         if append:
-            old_tmstps = read_tmstps_h5(destiny_path)
+            old_tmstps, times = analyze_existing_h5(destiny_path)
             tmstps = compare_tmstps(tmstps, old_tmstps)
         else:
             for f in destiny_path.glob('*.h5'):
@@ -194,7 +195,8 @@ class OldStructure:
 
         chunks = self.get_chunks(tmstps)
         for chunk in custom_tqdm(chunks, self.interface, "Iterate chunks", leave=True):
-            raw_data = self.read_raw_data(chunk)
+            raw_data = self.read_raw_data(chunk, times)
+            times = update_time(raw_data)
             tmstp = pd.Timestamp(str(chunk[0]))
             name = tmstp.strftime(self.strftime)
             raw_data.to_netcdf(destiny_path / ("raw_data_batch" + name + ".h5"))

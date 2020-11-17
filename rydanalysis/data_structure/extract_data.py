@@ -22,13 +22,22 @@ def read_tmstps_txt(_path, filename_pattern: str = '????_??_??_??.??.??',
     return tmstps
 
 
-def read_tmstps_h5(destiny_path: Path) -> Iterable[pd.DatetimeIndex]:
+def analyze_existing_h5(destiny_path: Path) -> Iterable[pd.DatetimeIndex]:
     try:
         data = load_data(destiny_path, lazy=True, to_multiindex=False)
-        tmstps = map(pd.to_datetime, data.tmstp.values)
-        return tmstps
+        time = update_time(data)
     except OSError:
         return []
+    tmstps = map(pd.to_datetime, data.tmstp.values)
+    return tmstps, time
+
+
+def update_time(data):
+    try:
+        return data.time
+    except KeyError:
+        return None
+
 
 
 def compare_tmstps(new_tmstps, old_tmstps):
@@ -97,13 +106,14 @@ def raw_data_to_multiindex(data: xr.Dataset):
 
 
 def read_raw_data(tmstps: List[pd.Timestamp], path: Path, strftime: str = '%Y_%m_%d_%H.%M.%S',
-                  csv_kwargs=None, fast_csv_kwargs=None, interface: str = "notebook"):
+                  csv_kwargs=None, fast_csv_kwargs=None, times=None, interface: str = "notebook"):
     raw_data = xr.Dataset()
     images = read_images(tmstps, path, strftime, interface)
     if images is not None:
         raw_data = xr.merge([raw_data, images])
-    traces = read_traces(tmstps, path, strftime, csv_kwargs, fast_csv_kwargs, interface)
+    traces = read_traces(tmstps, path, times, strftime, csv_kwargs, fast_csv_kwargs, interface)
     if traces is not None:
         raw_data['scope_traces'] = traces
     raw_data["parameters"] = read_parameters(tmstps, path, strftime, **csv_kwargs)
     return raw_data
+
