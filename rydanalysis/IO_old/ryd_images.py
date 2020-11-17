@@ -4,11 +4,11 @@ import numpy as np
 from rydanalysis.data_structure.ryd_data import RydData
 
 
-@xr.register_dataset_accessor('ryd_images')
+@xr.register_dataset_accessor("ryd_images")
 class RydImages(RydData):
-    ATOMS_IMAGE = 'image_01'
-    LIGHT_IMAGE = 'image_03'
-    BACKGROUND_IMAGE = 'image_05'
+    ATOMS_IMAGE = "image_01"
+    LIGHT_IMAGE = "image_03"
+    BACKGROUND_IMAGE = "image_05"
 
     def __init__(self, xarray_obj):
         super().__init__(xarray_obj)

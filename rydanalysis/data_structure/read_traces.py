@@ -145,9 +145,7 @@ class TraceReaderTRC(TraceReader):
         return read_trace_trc(tmstp, self.path, self.strftime, self.channel)
 
     def read_trace_values(self, tmstp):
-        return read_trace_trc_values(
-            tmstp, self.path, self.strftime, self.channel
-        )
+        return read_trace_trc_values(tmstp, self.path, self.strftime, self.channel)
 
     @staticmethod
     def get_index(trace):

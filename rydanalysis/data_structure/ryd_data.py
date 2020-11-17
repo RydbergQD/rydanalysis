@@ -6,7 +6,9 @@ from rydanalysis.auxiliary.decorators import cached_property
 
 def load_ryd_data(path):
     data = xr.load_dataset(path)
-    coord_keys = [coord for coord in data.coords.keys() if coord not in {'x', 'y', 'time'}]
+    coord_keys = [
+        coord for coord in data.coords.keys() if coord not in {"x", "y", "time"}
+    ]
     data = data.set_index(shot=coord_keys)
     return data
 
@@ -15,9 +17,10 @@ def load_ryd_data(path):
 @xr.register_dataarray_accessor("ryd_data")
 class RydData:
     """Functionality for xarray datasets including the 'shot' mutiindex."""
-    TIME_FORMAT = '%Y_%m_%d_%H.%M.%S'
-    SHOT_INDEX = 'shot'
-    TMSTP = 'tmstp'
+
+    TIME_FORMAT = "%Y_%m_%d_%H.%M.%S"
+    SHOT_INDEX = "shot"
+    TMSTP = "tmstp"
 
     def __init__(self, xarray_obj):
         self._obj: Union[xr.Dataset, xr.Dataset] = xarray_obj
@@ -29,9 +32,11 @@ class RydData:
         elif self.TMSTP in self._obj.dims:
             return False
         else:
-            raise AttributeError("Data has neither the index '{}' nor '{}'".format(
-                self.SHOT_INDEX, self.TMSTP
-            ))
+            raise AttributeError(
+                "Data has neither the index '{}' nor '{}'".format(
+                    self.SHOT_INDEX, self.TMSTP
+                )
+            )
 
     @property
     def shot_or_tmstp(self):
@@ -54,7 +59,7 @@ class RydData:
 
     @cached_property
     def image_names(self):
-        return [name for name in self._obj.data_vars.keys() if 'image' in name]
+        return [name for name in self._obj.data_vars.keys() if "image" in name]
 
     @property
     def has_images(self):
@@ -70,7 +75,7 @@ class RydData:
 
     @property
     def has_traces(self):
-        if 'scope_traces' in self._obj:
+        if "scope_traces" in self._obj:
             return True
         else:
             return False
@@ -78,8 +83,8 @@ class RydData:
     @property
     def date(self):
         tmstp = self._obj.tmstp.values[0]
-        time_string = np.datetime_as_string([tmstp], unit='D')
-        return time_string[0].replace('-', '_')
+        time_string = np.datetime_as_string([tmstp], unit="D")
+        return time_string[0].replace("-", "_")
 
     def choose_shot(self, tmstp):
         shot = self._obj.sel(tmstp=tmstp)
@@ -89,7 +94,6 @@ class RydData:
 
 @xr.register_dataarray_accessor("ryd_traces")
 class RydTraces(RydData):
-
     def to_pandas(self, path):
         data = self._obj.reset_index(self.SHOT_INDEX)
         data.to_netcdf(path)

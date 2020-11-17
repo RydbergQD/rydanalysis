@@ -8,8 +8,16 @@ from typing import Dict, Optional, Union, Tuple
 import pandas as pd
 
 from rydanalysis.auxiliary.user_input import custom_output, custom_tqdm
-from .extract_data import read_tmstps_txt, read_parameters, read_parameters_single, read_raw_data, \
-    analyze_existing_h5, compare_tmstps, raw_data_to_multiindex, update_time
+from .extract_data import (
+    read_tmstps_txt,
+    read_parameters,
+    read_parameters_single,
+    read_raw_data,
+    analyze_existing_h5,
+    compare_tmstps,
+    raw_data_to_multiindex,
+    update_time,
+)
 from .read_images import read_images, read_image
 from .read_traces import read_traces, read_trace_csv
 
@@ -20,16 +28,20 @@ class OldStructure:
     base_path: Optional[Union[str, Path]] = None
     date: Optional[datetime.date] = None
     scan_name: Optional[str] = None
-    strftime: str = '%Y_%m_%d_%H.%M.%S'
-    date_strftime: str = '%Y_%m_%d'
-    filename_pattern: str = '????_??_??_??.??.??'
+    strftime: str = "%Y_%m_%d_%H.%M.%S"
+    date_strftime: str = "%Y_%m_%d"
+    filename_pattern: str = "????_??_??_??.??.??"
     csv_kwargs: Dict = field(
-        default_factory=lambda: dict(index_col=0, squeeze=True, sep='\t', decimal=',', header=None)
+        default_factory=lambda: dict(
+            index_col=0, squeeze=True, sep="\t", decimal=",", header=None
+        )
     )
     fast_csv_kwargs: Dict = field(
-        default_factory=lambda: dict(usecols=[1], squeeze=True, sep='\t', decimal=',', header=None)
+        default_factory=lambda: dict(
+            usecols=[1], squeeze=True, sep="\t", decimal=",", header=None
+        )
     )
-    handle_key_errors: str = 'ignore'
+    handle_key_errors: str = "ignore"
     sensor_widths: Tuple = (1100, 214)
     chunk_size: Optional[int] = field(default=500)
     interface: str = "notebook"
@@ -87,7 +99,9 @@ class OldStructure:
             pass
 
         if value is None:
-            self.date = datetime.datetime.strptime(self.strf_date, self.date_strftime).date()
+            self.date = datetime.datetime.strptime(
+                self.strf_date, self.date_strftime
+            ).date()
 
     @property
     def scan_names(self):
@@ -99,8 +113,10 @@ class OldStructure:
             return [x.name for x in path.iterdir() if x.is_dir()]
         else:
             custom_output(
-                'No experimental run was found on that date. Consider Changing the base path '
-                'or verify the date.', interface=self.interface)
+                "No experimental run was found on that date. Consider Changing the base path "
+                "or verify the date.",
+                interface=self.interface,
+            )
             return []
 
     @property
@@ -118,18 +134,19 @@ class OldStructure:
     def get_old_la(self):
         tmstps = self.extract_tmstps()
         initial_time = tmstps[0].date()
-        old_la_path = self._path / 'FITS Files' / '00_all_fit_results.csv'
+        old_la_path = self._path / "FITS Files" / "00_all_fit_results.csv"
         old_la = pd.read_csv(old_la_path, **self.csv_kwargs)
-        old_la.rename(columns=lambda x: x.replace(' ', ''), inplace=True)
+        old_la.rename(columns=lambda x: x.replace(" ", ""), inplace=True)
         old_la.time = old_la.time.apply(
-            lambda t: pd.to_datetime(t, unit='s', origin=initial_time))
-        old_la.set_index('time', inplace=True)
-        del old_la['Index']
+            lambda t: pd.to_datetime(t, unit="s", origin=initial_time)
+        )
+        old_la.set_index("time", inplace=True)
+        del old_la["Index"]
         return old_la
 
     def copy_sequences_variables(self, destiny_path):
         origin_path = self._path
-        for dir_name in ('Experimental Sequences', 'Voltages'):
+        for dir_name in ("Experimental Sequences", "Voltages"):
             origin_folder = origin_path / dir_name
             destiny_folder = destiny_path / dir_name
             if not destiny_folder.is_dir():
@@ -137,7 +154,9 @@ class OldStructure:
             origin_files = set(path.name for path in origin_folder.glob("*.xml"))
             existing_files = set(path.name for path in destiny_folder.glob("*.xml"))
             new_files = list(origin_files - existing_files)
-            for file in custom_tqdm(new_files, interface=self.interface, desc="Copy " + dir_name):
+            for file in custom_tqdm(
+                new_files, interface=self.interface, desc="Copy " + dir_name
+            ):
                 copy(origin_folder / file, destiny_folder)
 
     def copy_voltages(self, destiny_path):
@@ -149,7 +168,9 @@ class OldStructure:
         return read_tmstps_txt(self._path, self.filename_pattern, self.strftime)
 
     def read_parameters_single(self, tmstp):
-        return read_parameters_single(tmstp, self._path, self.strftime, **self.csv_kwargs)
+        return read_parameters_single(
+            tmstp, self._path, self.strftime, **self.csv_kwargs
+        )
 
     def read_parameters(self, tmstps):
         return read_parameters(tmstps, self._path, self.strftime, **self.csv_kwargs)
@@ -164,19 +185,33 @@ class OldStructure:
         return read_trace_csv(tmstp, self._path, self.strftime, **self.csv_kwargs)
 
     def read_traces(self, tmstps, times=None):
-        return read_traces(tmstps, self._path, times, self.strftime, self.csv_kwargs, self.fast_csv_kwargs,
-                           self.interface)
+        return read_traces(
+            tmstps,
+            self._path,
+            times,
+            self.strftime,
+            self.csv_kwargs,
+            self.fast_csv_kwargs,
+            self.interface,
+        )
 
     def read_raw_data(self, tmstps, times=None):
-        return read_raw_data(tmstps, self._path, self.strftime, self.csv_kwargs,
-                             self.fast_csv_kwargs, times=times, interface=self.interface)
+        return read_raw_data(
+            tmstps,
+            self._path,
+            self.strftime,
+            self.csv_kwargs,
+            self.fast_csv_kwargs,
+            times=times,
+            interface=self.interface,
+        )
 
     def get_chunks(self, tmstps):
         if not self.chunk_size:
             return [tmstps]
         if self.chunk_size > 0:
             n = abs(self.chunk_size)
-            return [tmstps[i:i + n] for i in range(0, len(tmstps), n)]
+            return [tmstps[i : i + n] for i in range(0, len(tmstps), n)]
 
     def save_data(self, destiny_path, append=True):
         destiny_path = Path(destiny_path)
@@ -187,7 +222,7 @@ class OldStructure:
             old_tmstps, times = analyze_existing_h5(destiny_path)
             tmstps = compare_tmstps(tmstps, old_tmstps)
         else:
-            for f in destiny_path.glob('*.h5'):
+            for f in destiny_path.glob("*.h5"):
                 os.remove(f)
 
         if not destiny_path.is_dir():
@@ -205,13 +240,15 @@ class OldStructure:
     def data(self):
         tmstps = self.extract_tmstps()
         if len(tmstps) > self.chunk_size:
-            raise ResourceWarning("Your dataset is larger than the batch_size. Consider saving"
-                                  " the data using 'save data' or increase the batch_size.")
+            raise ResourceWarning(
+                "Your dataset is larger than the batch_size. Consider saving"
+                " the data using 'save data' or increase the batch_size."
+            )
         raw_data = self.read_raw_data(tmstps)
         return raw_data_to_multiindex(raw_data)
 
 
-def get_date_from_path(path, date_strftime='%Y_%m_%d'):
+def get_date_from_path(path, date_strftime="%Y_%m_%d"):
     path = Path(path)
     if len(path.parts) < 2:
         return None

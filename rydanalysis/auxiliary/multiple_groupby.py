@@ -7,16 +7,16 @@ def pandas_to_raw_data(pandas_df):
     if len(pandas_df.index.names) == 1:
         shot_index_name = pandas_df.index.names[0]
     else:
-        shot_index_name = 'shot'
+        shot_index_name = "shot"
     # If the pandas_df is a series, the column has to be reasonably chosen
     if isinstance(pandas_df, pd.Series):
-        if shot_index_name == 'shot':
+        if shot_index_name == "shot":
             return xr.DataArray(pandas_df, dims=[shot_index_name])
         else:
             return pandas_df.to_xarray()
 
-    da = xr.DataArray(pandas_df, dims=[shot_index_name, 'data_coords'])
-    return da.unstack('data_coords')
+    da = xr.DataArray(pandas_df, dims=[shot_index_name, "data_coords"])
+    return da.unstack("data_coords")
 
 
 class DataGroupby:
@@ -36,32 +36,33 @@ class DataGroupby:
             yield name, pandas_to_raw_data(group)
 
     def map(self, func, args=(), **kwargs):
-
         def _func(name, arr):
             result = func(arr, *args, **kwargs)
 
             # If no information on the shot is in the result, this part adds it:
-            if 'shot' not in result.dims:
+            if "shot" not in result.dims:
                 # Test if shot is a multiindex or not
                 if isinstance(self._groupby.keys, str):
                     coords = {self._groupby.keys: name}
                 elif len(self._groupby.keys) == 1:
                     coords = {self._groupby.keys[0]: name}
                 else:
-                    coords = {'shot': pd.MultiIndex.from_tuples([name], names=self._groupby.keys)}
+                    coords = {
+                        "shot": pd.MultiIndex.from_tuples(
+                            [name], names=self._groupby.keys
+                        )
+                    }
 
                 # Expand the dimension and assign coords
-                result = result.expand_dims('shot')
+                result = result.expand_dims("shot")
                 return result.assign_coords(coords=coords)
             else:
                 return result
 
         results = [_func(name, arr) for name, arr in self]
-        return xr.concat(results, dim='shot')
+        return xr.concat(results, dim="shot")
 
-    def reduce(
-            self, func, dim=None, axis=None, keep_attrs=None, **kwargs
-    ):
+    def reduce(self, func, dim=None, axis=None, keep_attrs=None, **kwargs):
         """Reduce the items in this group by applying `func` along some
         dimension(s).
 
@@ -127,8 +128,8 @@ class MultipleGroupBy:
 
     def __init__(self, arr):
         # Create pandas DataFrame with MultiColumns containing x and y and multiindex containing the shots multiindex
-        data_coords = [dim for dim in arr.dims if dim != 'shot']
-        df = arr.stack({'data_coords': data_coords}).to_pandas()
+        data_coords = [dim for dim in arr.dims if dim != "shot"]
+        df = arr.stack({"data_coords": data_coords}).to_pandas()
         self._dataframe = df
 
     def __call__(self, group):

@@ -2,15 +2,18 @@ import xarray as xr
 import streamlit as st
 import plotly.graph_objects as go
 from dataclasses import dataclass
-from rydanalysis.data_analysis.ions_analysis import PeaksSummaryAccessor, summarize_peak_description
+from rydanalysis.data_analysis.ions_analysis import (
+    PeaksSummaryAccessor,
+    summarize_peak_description,
+)
 
 
 @dataclass
 class IonSequenceAnalysis:
     height: float = 0.02
-    prominence: float = 0.
-    threshold: float = 0.
-    distance: float = 0.
+    prominence: float = 0.0
+    threshold: float = 0.0
+    distance: float = 0.0
     width: float = 0.3
 
     def peak_description(self, traces: xr.DataArray):
@@ -27,17 +30,32 @@ class IonSequenceAnalysis:
     def streamlit_update_params(self):
         st.markdown("## Peak finding settings:")
         self.height = st.number_input(
-            'minimal peak height', min_value=0.005, value=self.height, step=0.0001, format="%g")
+            "minimal peak height",
+            min_value=0.005,
+            value=self.height,
+            step=0.0001,
+            format="%g",
+        )
         self.width = st.number_input(
-            'minimal peak width [in ns]', min_value=0., value=self.width)
+            "minimal peak width [in ns]", min_value=0.0, value=self.width
+        )
         self.prominence = st.number_input(
-            'minimal peak prominence', min_value=0., value=self.prominence,
-            step=0.0001, format="%g")
+            "minimal peak prominence",
+            min_value=0.0,
+            value=self.prominence,
+            step=0.0001,
+            format="%g",
+        )
         self.threshold = st.number_input(
-            'minimal peak threshold', min_value=0., value=self.threshold,
-            step=0.0001, format="%g")
+            "minimal peak threshold",
+            min_value=0.0,
+            value=self.threshold,
+            step=0.0001,
+            format="%g",
+        )
         self.distance = st.number_input(
-            'minimal peak distance [ns]', min_value=0., value=self.distance)
+            "minimal peak distance [ns]", min_value=0.0, value=self.distance
+        )
 
     def live_ion_analysis(self, shot):
         if not shot.ryd_data.has_traces:

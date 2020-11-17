@@ -25,7 +25,7 @@ def nn_replace_invalid(data: np.ndarray, invalid=None):
     else:
         inv = data == invalid
 
-    ind = ndimage.distance_transform_edt(inv,
-                                         return_distances=False,
-                                         return_indices=True)
+    ind = ndimage.distance_transform_edt(
+        inv, return_distances=False, return_indices=True
+    )
     return data[tuple(ind)]

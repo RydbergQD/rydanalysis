@@ -8,7 +8,7 @@ def pca_extract_noise(im, n_components=None):
     pca = decomposition.PCA(n_components=n_components)
     comp = pca.fit_transform(im_flat)
     projected = pca.inverse_transform(comp)
-    res = im_flat-projected
+    res = im_flat - projected
     res = res.reshape((-1, *im_shape))
     return res
 
@@ -32,7 +32,7 @@ def split_signal_noise(im, n_components=None, return_residual=True):
     pca = decomposition.PCA(n_components=n_components)
     comp = pca.fit_transform(im_flat)
     projected = pca.inverse_transform(comp)
-    res = im_flat-projected
+    res = im_flat - projected
     res = res.reshape((-1, *im_shape))
     projected = projected.reshape((-1, *im_shape))
 
@@ -79,4 +79,3 @@ def decompose_images(im, n_components=None):
     pca = pca.fit(im_flat)
     comp = pca.components_.reshape((-1, *im_shape))
     return comp
-

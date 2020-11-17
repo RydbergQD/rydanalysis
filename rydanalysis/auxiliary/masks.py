@@ -16,8 +16,8 @@ class Mask(metaclass=ABCMeta):
         return self.image.where(self.get_mask(*args, **kwargs))
 
 
-@xr.register_dataset_accessor('rectangular_mask')
-@xr.register_dataarray_accessor('rectangular_mask')
+@xr.register_dataset_accessor("rectangular_mask")
+@xr.register_dataarray_accessor("rectangular_mask")
 class RectangularMask(Mask):
     def __init__(self, image):
         super().__init__(image)
@@ -28,8 +28,8 @@ class RectangularMask(Mask):
         return mask
 
 
-@xr.register_dataset_accessor('polygon_mask')
-@xr.register_dataarray_accessor('polygon_mask')
+@xr.register_dataset_accessor("polygon_mask")
+@xr.register_dataarray_accessor("polygon_mask")
 class PolygonMask(Mask):
     def __init__(self, image):
         super().__init__(image)
@@ -51,33 +51,44 @@ class PolygonMask(Mask):
         vertices = np.array([x_coords, y_coords]).T
 
         polygon = polygon2mask(shape, vertices)
-        mask = xr.DataArray(polygon, coords={'x': x, 'y': y}, dims=['x', 'y'])
+        mask = xr.DataArray(polygon, coords={"x": x, "y": y}, dims=["x", "y"])
         return mask
 
 
-@xr.register_dataset_accessor('elliptical_mask')
-@xr.register_dataarray_accessor('elliptical_mask')
+@xr.register_dataset_accessor("elliptical_mask")
+@xr.register_dataarray_accessor("elliptical_mask")
 class EllipticalMask(Mask):
     def __init__(self, image):
         super().__init__(image)
 
-    def get_mask(self, center_x=0, center_y=0, width_x=50, width_y=50, x='x', y='y', invert=False):
+    def get_mask(
+        self, center_x=0, center_y=0, width_x=50, width_y=50, x="x", y="y", invert=False
+    ):
         image = self.image
-        mask = (((image[x] - center_x)/width_x)**2 + ((image[y] - center_y)/width_y)**2) < 1
+        mask = (
+            ((image[x] - center_x) / width_x) ** 2
+            + ((image[y] - center_y) / width_y) ** 2
+        ) < 1
         if invert:
             return ~mask
         else:
             return mask
 
 
-@xr.register_dataset_accessor('eit_mask')
-@xr.register_dataarray_accessor('eit_mask')
+@xr.register_dataset_accessor("eit_mask")
+@xr.register_dataarray_accessor("eit_mask")
 class EITMask(Mask):
     def __init__(self, image):
         super().__init__(image)
 
     def get_mask(self, center_x=0, center_y=0, width_x=200, width_y=600, width_eit=50):
         image = self.image
-        mask_cloud = (((image.x - center_x)/width_x)**2 + ((image.y - center_y)/width_y)**2) < 1
-        mask_spot = (((image.x - center_x)/width_eit)**2 + ((image.y - center_y)/width_eit)**2) > 1
-        return mask_cloud*mask_spot
+        mask_cloud = (
+            ((image.x - center_x) / width_x) ** 2
+            + ((image.y - center_y) / width_y) ** 2
+        ) < 1
+        mask_spot = (
+            ((image.x - center_x) / width_eit) ** 2
+            + ((image.y - center_y) / width_eit) ** 2
+        ) > 1
+        return mask_cloud * mask_spot

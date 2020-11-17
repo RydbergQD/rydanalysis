@@ -6,11 +6,23 @@ import xarray as xr
 
 from rydanalysis.auxiliary.decorators import cached_property
 
-a0 = physical_constants['Bohr radius'][0]
+a0 = physical_constants["Bohr radius"][0]
 
 
 class DipoleTransition:
-    def __init__(self, n1=5, l1=0, j1=0.5, n2=5, l2=1, j2=1.5, mj1=0.5, mj2=1.5, q=1, temperature=300):
+    def __init__(
+        self,
+        n1=5,
+        l1=0,
+        j1=0.5,
+        n2=5,
+        l2=1,
+        j2=1.5,
+        mj1=0.5,
+        mj2=1.5,
+        q=1,
+        temperature=300,
+    ):
         self.n1 = n1
         self.l1 = l1
         self.j1 = j1
@@ -25,7 +37,9 @@ class DipoleTransition:
 
     @property
     def wavelength(self):
-        return self.atom.getTransitionWavelength(self.n1, self.l1, self.j1, self.n2, self.l2, self.j2)
+        return self.atom.getTransitionWavelength(
+            self.n1, self.l1, self.j1, self.n2, self.l2, self.j2
+        )
 
     @property
     def frequency(self):
@@ -33,17 +47,41 @@ class DipoleTransition:
 
     @property
     def dipole_matrix_element(self):
-        return self.atom.getDipoleMatrixElement(self.n1, self.l1, self.j1, self.mj1,
-                                                self.n2, self.l2, self.j2, self.mj2, self.q)*e*a0
+        return (
+            self.atom.getDipoleMatrixElement(
+                self.n1,
+                self.l1,
+                self.j1,
+                self.mj1,
+                self.n2,
+                self.l2,
+                self.j2,
+                self.mj2,
+                self.q,
+            )
+            * e
+            * a0
+        )
 
     def get_rabi_freq(self, waist, power):
-        return self.atom.getRabiFrequency(self.n1, self.l1, self.j1, self.mj1,
-                                          self.n2, self.l2, self.j2, self.q,
-                                          power, waist)
+        return self.atom.getRabiFrequency(
+            self.n1,
+            self.l1,
+            self.j1,
+            self.mj1,
+            self.n2,
+            self.l2,
+            self.j2,
+            self.q,
+            power,
+            waist,
+        )
 
     @property
     def life_time(self):
-        return self.atom.getStateLifetime(self.n2, self.l2, self.j2, self.temperature, self.n2 + 10)
+        return self.atom.getStateLifetime(
+            self.n2, self.l2, self.j2, self.temperature, self.n2 + 10
+        )
 
     @property
     def decay_rate(self):
@@ -51,7 +89,7 @@ class DipoleTransition:
 
     @property
     def cross_section(self):
-        return 3/(2*np.pi) * self.wavelength**2
+        return 3 / (2 * np.pi) * self.wavelength ** 2
 
     def power(self, image, quantum_efficiency, t_exp):
         return h * self.frequency * image / (quantum_efficiency * t_exp)
@@ -65,7 +103,17 @@ class LiveAnalysisTransition(DipoleTransition):
 
     def __init__(self):
         super(LiveAnalysisTransition, self).__init__(
-            n1=5, l1=0, j1=0.5, n2=5, l2=1, j2=1.5, mj1=0.5, mj2=1.5, q=1, temperature=300)
+            n1=5,
+            l1=0,
+            j1=0.5,
+            n2=5,
+            l2=1,
+            j2=1.5,
+            mj1=0.5,
+            mj2=1.5,
+            q=1,
+            temperature=300,
+        )
 
 
 # class DepletionImaging(ReferenceAnalysis):

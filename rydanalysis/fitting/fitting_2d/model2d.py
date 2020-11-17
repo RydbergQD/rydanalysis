@@ -2,7 +2,14 @@ import warnings
 from copy import deepcopy
 import sys
 from lmfit import Model, Parameter
-from lmfit.model import _ensureMatplotlib, propagate_err, ModelResult, isnull, _align, CompositeModel
+from lmfit.model import (
+    _ensureMatplotlib,
+    propagate_err,
+    ModelResult,
+    isnull,
+    _align,
+    CompositeModel,
+)
 import xarray as xr
 import inspect
 import numpy as np
@@ -26,8 +33,10 @@ def get_reducer(option):
         See docstring for `reducer` below.
 
     """
-    if option not in ['real', 'imag', 'abs', 'angle']:
-        raise ValueError("Invalid parameter name ('%s') for function 'propagate_err'." % option)
+    if option not in ["real", "imag", "abs", "angle"]:
+        raise ValueError(
+            "Invalid parameter name ('%s') for function 'propagate_err'." % option
+        )
 
     def reducer(array):
         """Convert a complex array to a real array.
@@ -58,12 +67,28 @@ def get_reducer(option):
 
 
 class Model2d(Model):
-    stacked_name = 'stacked_args'
+    stacked_name = "stacked_args"
 
-    def __init__(self, func, independent_vars=None, param_names=None,
-                 nan_policy='raise', prefix='', name=None, **kws):
-        Model.__init__(self, func, independent_vars=independent_vars, param_names=param_names,
-                       nan_policy=nan_policy, prefix=prefix, name=name, **kws)
+    def __init__(
+        self,
+        func,
+        independent_vars=None,
+        param_names=None,
+        nan_policy="raise",
+        prefix="",
+        name=None,
+        **kws
+    ):
+        Model.__init__(
+            self,
+            func,
+            independent_vars=independent_vars,
+            param_names=param_names,
+            nan_policy=nan_policy,
+            prefix=prefix,
+            name=name,
+            **kws
+        )
 
     def __add__(self, other):
         """+"""
@@ -94,7 +119,7 @@ class Model2d(Model):
         #   kw_args: dict of keyword arguments with default values
         #   keywords_:  name of **kws argument or None
         # 1. limited support for asteval functions as the model functions:
-        if hasattr(self.func, 'argnames') and hasattr(self.func, 'kwargs'):
+        if hasattr(self.func, "argnames") and hasattr(self.func, "kwargs"):
             pos_args = self.func.argnames[:]
             keywords_ = None
             kw_args = {}
@@ -145,8 +170,7 @@ class Model2d(Model):
         if self._param_root_names is None:
             self._param_root_names = pos_args[:]
             for key, val in kw_args.items():
-                if (not isinstance(val, bool) and
-                        isinstance(val, (float, int))):
+                if not isinstance(val, bool) and isinstance(val, (float, int)):
                     self._param_root_names.append(key)
                     self.def_vals[key] = val
                 elif val is None:
@@ -157,17 +181,21 @@ class Model2d(Model):
 
         new_opts = {}
         for opt, val in self.opts.items():
-            if (opt in self._param_root_names or opt in might_be_param and
-                    isinstance(val, Parameter)):
-                self.set_param_hint(opt, value=val.value,
-                                    min=val.min, max=val.max, expr=val.expr)
+            if (
+                opt in self._param_root_names
+                or opt in might_be_param
+                and isinstance(val, Parameter)
+            ):
+                self.set_param_hint(
+                    opt, value=val.value, min=val.min, max=val.max, expr=val.expr
+                )
             elif opt in self._func_allargs:
                 new_opts[opt] = val
         self.opts = new_opts
 
         names = []
         if self._prefix is None:
-            self._prefix = ''
+            self._prefix = ""
         for pname in self._param_root_names:
             names.append("%s%s" % (self._prefix, pname))
 
@@ -178,8 +206,7 @@ class Model2d(Model):
             if arg not in allargs or arg in self._forbidden_args:
                 raise ValueError(self._invalid_ivar % (arg, fname))
         for arg in names:
-            if (self._strip_prefix(arg) not in allargs or
-                    arg in self._forbidden_args):
+            if self._strip_prefix(arg) not in allargs or arg in self._forbidden_args:
                 raise ValueError(self._invalid_par % (arg, fname))
         # the following as been changed from OrderedSet for the time being.
         self._param_names = names[:]
@@ -191,7 +218,7 @@ class Model2d(Model):
             elif var in data.coords:
                 kwargs[var] = data[var]
             else:
-                raise ValueError('Not initialized variable ', var)
+                raise ValueError("Not initialized variable ", var)
         return kwargs
 
     def create_xarray(self, data, **kwargs):
@@ -230,17 +257,21 @@ class Model2d(Model):
 
         """
         model = self.eval(params, **kwargs)
-        if self.nan_policy == 'raise' and not np.all(np.isfinite(model)):
-            msg = ('The model function generated NaN values and the fit '
-                   'aborted! Please check your model function and/or set '
-                   'boundaries on parameters where applicable. In cases like '
-                   'this, using "nan_policy=\'omit\'" will probably not work.')
+        if self.nan_policy == "raise" and not np.all(np.isfinite(model)):
+            msg = (
+                "The model function generated NaN values and the fit "
+                "aborted! Please check your model function and/or set "
+                "boundaries on parameters where applicable. In cases like "
+                "this, using \"nan_policy='omit'\" will probably not work."
+            )
             raise ValueError(msg)
 
         diff = model - data
 
         if diff.dtype == np.complex:
-            raise NotImplementedError("Complex values not yet supported. Can be fixed by properly stacking the values.")
+            raise NotImplementedError(
+                "Complex values not yet supported. Can be fixed by properly stacking the values."
+            )
             # # data/model are complex
             # diff = diff.ravel().view(np.float)
             # if weights is not None:
@@ -255,9 +286,20 @@ class Model2d(Model):
 
         return self.stack(diff).dropna(self.stacked_name)
 
-    def fit(self, data, params=None, weights=None, method='leastsq',
-            iter_cb=None, scale_covar=True, verbose=False, fit_kws=None,
-            nan_policy=None, calc_covar=True, **kwargs):
+    def fit(
+        self,
+        data,
+        params=None,
+        weights=None,
+        method="leastsq",
+        iter_cb=None,
+        scale_covar=True,
+        verbose=False,
+        fit_kws=None,
+        nan_policy=None,
+        calc_covar=True,
+        **kwargs
+    ):
         """Fit the model to the data using the supplied Parameters.
         Parameters
         ----------
@@ -336,23 +378,29 @@ class Model2d(Model):
         # All remaining kwargs should correspond to independent variables.
         for name in kwargs:
             if name not in self.independent_vars:
-                warnings.warn("The keyword argument %s does not " % name +
-                              "match any arguments of the model function. " +
-                              "It will be ignored.", UserWarning)
+                warnings.warn(
+                    "The keyword argument %s does not " % name
+                    + "match any arguments of the model function. "
+                    + "It will be ignored.",
+                    UserWarning,
+                )
 
         # If any parameter is not initialized raise a more helpful error.
-        missing_param = any([p not in params.keys()
-                             for p in self.param_names])
-        blank_param = any([(p.value is None and p.expr is None)
-                           for p in params.values()])
+        missing_param = any([p not in params.keys() for p in self.param_names])
+        blank_param = any(
+            [(p.value is None and p.expr is None) for p in params.values()]
+        )
         if missing_param or blank_param:
-            msg = ('Assign each parameter an initial value by passing '
-                   'Parameters or keyword arguments to fit.\n')
+            msg = (
+                "Assign each parameter an initial value by passing "
+                "Parameters or keyword arguments to fit.\n"
+            )
             missing = [p for p in self.param_names if p not in params.keys()]
-            blank = [name for name, p in params.items()
-                     if p.value is None and p.expr is None]
-            msg += 'Missing parameters: %s\n' % str(missing)
-            msg += 'Non initialized parameters: %s' % str(blank)
+            blank = [
+                name for name, p in params.items() if p.value is None and p.expr is None
+            ]
+            msg += "Missing parameters: %s\n" % str(missing)
+            msg += "Non initialized parameters: %s" % str(blank)
             raise ValueError(msg)
 
         # Create xarray from data and weights
@@ -387,7 +435,7 @@ class Model2d(Model):
             self.nan_policy = nan_policy
 
         mask = None
-        if self.nan_policy == 'omit':
+        if self.nan_policy == "omit":
             mask = ~data.isnull()
             if mask is not None:
                 data = data.where(mask, drop=True)
@@ -406,10 +454,17 @@ class Model2d(Model):
         if fit_kws is None:
             fit_kws = {}
 
-        output = ModelResult2d(self, params, method=method, iter_cb=iter_cb,
-                               scale_covar=scale_covar, fcn_kws=kwargs,
-                               nan_policy=self.nan_policy, calc_covar=calc_covar,
-                               **fit_kws)
+        output = ModelResult2d(
+            self,
+            params,
+            method=method,
+            iter_cb=iter_cb,
+            scale_covar=scale_covar,
+            fcn_kws=kwargs,
+            nan_policy=self.nan_policy,
+            calc_covar=calc_covar,
+            **fit_kws
+        )
         output.fit(data=data, weights=weights)
         output.components = self.components
         return output
@@ -443,7 +498,9 @@ class Model2d(Model):
         """
         for variable in self.independent_vars:
             data_var = kwargs[variable]
-            kwargs[variable] = xr.DataArray(data_var, coords={variable: data_var}, dims=variable)
+            kwargs[variable] = xr.DataArray(
+                data_var, coords={variable: data_var}, dims=variable
+            )
 
         return self.func(**self.make_funcargs(params, kwargs))
 
@@ -453,7 +510,6 @@ class Model2d(Model):
 
 
 class CompositeModel2d(CompositeModel, Model2d):
-
     def copy(self, **kwargs):
         """DOES NOT WORK."""
         raise NotImplementedError("Model.copy does not work. Make a new Model")
@@ -466,21 +522,56 @@ class ModelResult2d(ModelResult):
     that it can be used to modify and re-run the fit for the Model.
     """
 
-    def __init__(self, model, params, data=None, weights=None,
-                 method='leastsq', fcn_args=None, fcn_kws=None,
-                 iter_cb=None, scale_covar=True, nan_policy='raise',
-                 calc_covar=True, **fit_kws):
-        super().__init__(model, params, data=data, weights=weights,
-                         method=method, fcn_args=fcn_args, fcn_kws=fcn_kws,
-                         iter_cb=iter_cb, scale_covar=scale_covar, nan_policy=nan_policy,
-                         calc_covar=calc_covar, **fit_kws)
+    def __init__(
+        self,
+        model,
+        params,
+        data=None,
+        weights=None,
+        method="leastsq",
+        fcn_args=None,
+        fcn_kws=None,
+        iter_cb=None,
+        scale_covar=True,
+        nan_policy="raise",
+        calc_covar=True,
+        **fit_kws
+    ):
+        super().__init__(
+            model,
+            params,
+            data=data,
+            weights=weights,
+            method=method,
+            fcn_args=fcn_args,
+            fcn_kws=fcn_kws,
+            iter_cb=iter_cb,
+            scale_covar=scale_covar,
+            nan_policy=nan_policy,
+            calc_covar=calc_covar,
+            **fit_kws
+        )
 
     @_ensureMatplotlib
-    def plot_fit(self, ax=None, datafmt='o', fitfmt='-', initfmt='--',
-                 fit_color='black', init_color='tab:grey',
-                 xlabel=None, ylabel=None, yerr=None, numpoints=None,
-                 data_kws=None, fit_kws=None, init_kws=None, ax_kws=None,
-                 show_init=False, parse_complex='abs'):
+    def plot_fit(
+        self,
+        ax=None,
+        datafmt="o",
+        fitfmt="-",
+        initfmt="--",
+        fit_color="black",
+        init_color="tab:grey",
+        xlabel=None,
+        ylabel=None,
+        yerr=None,
+        numpoints=None,
+        data_kws=None,
+        fit_kws=None,
+        init_kws=None,
+        ax_kws=None,
+        show_init=False,
+        parse_complex="abs",
+    ):
         """Plot the fit results using matplotlib, if available.
         The plot will include the data points, the initial fit curve (optional,
         with `show_init=True`), and the best-fit curve. If the fit model
@@ -545,6 +636,7 @@ class ModelResult2d(ModelResult):
         ModelResult.plot : Plot the fit results and residuals using matplotlib.
         """
         from matplotlib import pyplot as plt
+
         if data_kws is None:
             data_kws = {}
         if fit_kws is None:
@@ -565,11 +657,15 @@ class ModelResult2d(ModelResult):
         xy_array_dense = self.build_dense_xarray(numpoints)
 
         if show_init:
-            init_data = reduce_complex(self.model.eval(self.init_params, **xy_array_dense))
-            init_data.plot.contour(colors=init_color, linestyles=initfmt, ax=ax, **init_kws)
+            init_data = reduce_complex(
+                self.model.eval(self.init_params, **xy_array_dense)
+            )
+            init_data.plot.contour(
+                colors=init_color, linestyles=initfmt, ax=ax, **init_kws
+            )
 
         data = reduce_complex(self.data)
-        data.plot(ax=ax, label='data', center=False, **data_kws)
+        data.plot(ax=ax, label="data", center=False, **data_kws)
 
         best_fit = reduce_complex(self.model.eval(self.params, **xy_array_dense))
         best_fit.plot.contour(colors=fit_color, linestyles=fitfmt, ax=ax, **fit_kws)
@@ -595,17 +691,33 @@ class ModelResult2d(ModelResult):
 
             # make a dense array for x-axis if data is not dense
             if numpoints is not None and len(self.data) < numpoints[i]:
-                xy_array_dense[independent_var] = np.linspace(min(xy_array), max(xy_array), numpoints)
+                xy_array_dense[independent_var] = np.linspace(
+                    min(xy_array), max(xy_array), numpoints
+                )
             else:
                 xy_array_dense[independent_var] = xy_array
         return xy_array_dense
 
-    def plotly_fit(self, fig: go.Figure, row: int = 1, col: int = 1,
-                   numpoints=None,
-                   show_init=False, init_color='grey', initfmt='dash', init_width=3, init_kws=None,
-                   fit_color='black', fitfmt='solid', fit_width=3, fit_kws=None,
-                   data_kws=None,
-                   parse_complex='abs', weighted=True, heatmap_args=None):
+    def plotly_fit(
+        self,
+        fig: go.Figure,
+        row: int = 1,
+        col: int = 1,
+        numpoints=None,
+        show_init=False,
+        init_color="grey",
+        initfmt="dash",
+        init_width=3,
+        init_kws=None,
+        fit_color="black",
+        fitfmt="solid",
+        fit_width=3,
+        fit_kws=None,
+        data_kws=None,
+        parse_complex="abs",
+        weighted=True,
+        heatmap_args=None,
+    ):
         # The function reduce_complex will convert complex vectors into real vectors
         if fit_kws is None:
             fit_kws = {}
@@ -621,35 +733,57 @@ class ModelResult2d(ModelResult):
         xy_array_dense = self.build_dense_xarray(numpoints)
 
         if show_init:
-            init_data = reduce_complex(self.model.eval(self.init_params, **xy_array_dense))
+            init_data = reduce_complex(
+                self.model.eval(self.init_params, **xy_array_dense)
+            )
             init_data.plotly_image.add_contour(
-                fig=fig, row=row, col=col, contours_coloring='lines',
+                fig=fig,
+                row=row,
+                col=col,
+                contours_coloring="lines",
                 line=dict(dash=initfmt, width=init_width, color=init_color),
                 **init_kws
             )
 
         data = reduce_complex(self.data)
-        data.plotly_image.add_trace(fig=fig, row=row, col=col, name='data', **data_kws)
+        data.plotly_image.add_trace(fig=fig, row=row, col=col, name="data", **data_kws)
 
         best_fit = reduce_complex(self.model.eval(self.params, **xy_array_dense))
 
         best_fit.plotly_image.add_contour(
-            fig=fig, row=row, col=col, contours_coloring='lines',
+            fig=fig,
+            row=row,
+            col=col,
+            contours_coloring="lines",
             line=dict(dash=fitfmt, width=fit_width, color=fit_color),
             **fit_kws
         )
         return fig
 
-    def plotly_plot(self, ):
-        fig = make_subplots(rows=2, cols=1, shared_xaxes=True, subplot_titles=('residuals', 'fit'),
-                            row_heights=[0.3, 0.7])
+    def plotly_plot(self,):
+        fig = make_subplots(
+            rows=2,
+            cols=1,
+            shared_xaxes=True,
+            subplot_titles=("residuals", "fit"),
+            row_heights=[0.3, 0.7],
+        )
         self.plotly_residuals(fig, row=1, col=1)
         self.plot_fit(fig, row=2, col=1)
-        fig.update_yaxes(yaxis='y', row=2, col=1)
+        fig.update_yaxes(yaxis="y", row=2, col=1)
 
     @_ensureMatplotlib
-    def plot_residuals(self, ax=None, datafmt='o', yerr=None, data_kws=None,
-                       fit_kws=None, ax_kws=None, parse_complex='abs', weighted=True):
+    def plot_residuals(
+        self,
+        ax=None,
+        datafmt="o",
+        yerr=None,
+        data_kws=None,
+        fit_kws=None,
+        ax_kws=None,
+        parse_complex="abs",
+        weighted=True,
+    ):
         """Plot the fit residuals using matplotlib, if available.
 
         If `yerr` is supplied or if the model included weights, errorbars
@@ -703,6 +837,7 @@ class ModelResult2d(ModelResult):
 
         """
         from matplotlib import pyplot as plt
+
         if data_kws is None:
             data_kws = {}
         if fit_kws is None:
@@ -720,7 +855,7 @@ class ModelResult2d(ModelResult):
         if weighted and self.weights is not None:
             residuals *= abs(self.weights)
 
-        residuals.name = 'residuals'
+        residuals.name = "residuals"
 
         residuals.plot(ax=ax, **fit_kws)
 
@@ -728,8 +863,15 @@ class ModelResult2d(ModelResult):
         # ax.legend(loc='best')
         return ax
 
-    def plotly_residuals(self, fig: go.Figure, row: int = 1, col: int = 1,
-                         parse_complex='abs', weighted=True, heatmap_args=None):
+    def plotly_residuals(
+        self,
+        fig: go.Figure,
+        row: int = 1,
+        col: int = 1,
+        parse_complex="abs",
+        weighted=True,
+        heatmap_args=None,
+    ):
         if heatmap_args is None:
             heatmap_args = {}
         reduce_complex = get_reducer(parse_complex)
@@ -737,15 +879,32 @@ class ModelResult2d(ModelResult):
         if weighted and self.weights is not None:
             residuals *= abs(self.weights)
 
-        residuals.name = 'residuals'
+        residuals.name = "residuals"
         residuals.plotly_image.add_trace(row=row, col=col, **heatmap_args)
 
     @_ensureMatplotlib
-    def plot(self, datafmt='o', fitfmt='-', initfmt='--', xlabel=None,
-             ylabel=None, yerr=None, numpoints=None, fig=None, data_kws=None,
-             fit_kws=None, init_kws=None, ax_res_kws=None, ax_fit_kws=None,
-             fig_kws=None, show_init=False, parse_complex='abs', fit_color='black',
-             init_color='tab:grey', weighted=True):
+    def plot(
+        self,
+        datafmt="o",
+        fitfmt="-",
+        initfmt="--",
+        xlabel=None,
+        ylabel=None,
+        yerr=None,
+        numpoints=None,
+        fig=None,
+        data_kws=None,
+        fit_kws=None,
+        init_kws=None,
+        ax_res_kws=None,
+        ax_fit_kws=None,
+        fig_kws=None,
+        show_init=False,
+        parse_complex="abs",
+        fit_color="black",
+        init_color="tab:grey",
+        weighted=True,
+    ):
         """Plot the fit results and residuals using matplotlib, if available.
 
         The method will produce a matplotlib figure with both results of the
@@ -827,6 +986,7 @@ class ModelResult2d(ModelResult):
 
         """
         from matplotlib import pyplot as plt
+
         if data_kws is None:
             data_kws = {}
         if fit_kws is None:
@@ -839,7 +999,7 @@ class ModelResult2d(ModelResult):
             ax_fit_kws = {}
 
         # make a square figure with side equal to the default figure's x-size
-        figxsize = plt.rcParams['figure.figsize'][0]
+        figxsize = plt.rcParams["figure.figsize"][0]
         fig_kws_ = dict(figsize=(figxsize, figxsize))
         if fig_kws is not None:
             fig_kws_.update(fig_kws)
@@ -851,13 +1011,34 @@ class ModelResult2d(ModelResult):
         ax_res = fig.add_subplot(gs[0], **ax_res_kws)
         ax_fit = fig.add_subplot(gs[1], sharex=ax_res, **ax_fit_kws)
 
-        self.plot_fit(ax=ax_fit, datafmt=datafmt, fitfmt=fitfmt, initfmt=initfmt,
-                      fit_color=fit_color, init_color=init_color,
-                      xlabel=xlabel, ylabel=ylabel, yerr=yerr, numpoints=numpoints,
-                      data_kws=data_kws, fit_kws=fit_kws, init_kws=init_kws, ax_kws=ax_fit_kws,
-                      show_init=show_init, parse_complex=parse_complex)
-        self.plot_residuals(ax=ax_res, datafmt=datafmt, yerr=yerr, data_kws=data_kws,
-                            fit_kws=fit_kws, ax_kws=ax_res_kws, parse_complex=parse_complex, weighted=weighted)
+        self.plot_fit(
+            ax=ax_fit,
+            datafmt=datafmt,
+            fitfmt=fitfmt,
+            initfmt=initfmt,
+            fit_color=fit_color,
+            init_color=init_color,
+            xlabel=xlabel,
+            ylabel=ylabel,
+            yerr=yerr,
+            numpoints=numpoints,
+            data_kws=data_kws,
+            fit_kws=fit_kws,
+            init_kws=init_kws,
+            ax_kws=ax_fit_kws,
+            show_init=show_init,
+            parse_complex=parse_complex,
+        )
+        self.plot_residuals(
+            ax=ax_res,
+            datafmt=datafmt,
+            yerr=yerr,
+            data_kws=data_kws,
+            fit_kws=fit_kws,
+            ax_kws=ax_res_kws,
+            parse_complex=parse_complex,
+            weighted=weighted,
+        )
         plt.setp(ax_res.get_xticklabels(), visible=False)
-        ax_fit.set_title('')
+        ax_fit.set_title("")
         return fig, gs

@@ -11,7 +11,7 @@ class PeaksSummaryAccessor:
     def __init__(self, xarray_obj):
         self.traces = xarray_obj
 
-    def count(self, dim='time', height=0.03, width=3, sign=-1, **kwargs):
+    def count(self, dim="time", height=0.03, width=3, sign=-1, **kwargs):
         """
         Count peaks using scipy.find_peaks
         Args:
@@ -32,11 +32,12 @@ class PeaksSummaryAccessor:
         def _count_reduce(trace, axis=0):
             peaks = trace.peaks.find_peaks(**kwargs)
             return len(peaks)
+
         counts = group_by_object.reduce(_count_reduce, dim=dim, **kwargs, sign=sign)
-        counts.name = 'ion_counts'
+        counts.name = "ion_counts"
         return counts
 
-    def integrate(self, dim='time', height=0.03, sign=-1):
+    def integrate(self, dim="time", height=0.03, sign=-1):
         """
         Integrate ions on multiple traces bundled in an xarray DataArray or Dataset.
         Args:
@@ -51,10 +52,18 @@ class PeaksSummaryAccessor:
         traces = traces.where(traces > height)
         variable_dim = traces.ryd_data.shot_or_tmstp
         integral = traces.groupby(variable_dim).sum(dim)
-        integral.name = 'ionsInt'
+        integral.name = "ionsInt"
         return integral
 
-    def get_peak_description(self, height=0.007, prominence=None, threshold=None, distance=None, width=2e-9, sign=-1):
+    def get_peak_description(
+        self,
+        height=0.007,
+        prominence=None,
+        threshold=None,
+        distance=None,
+        width=2e-9,
+        sign=-1,
+    ):
         traces = self.traces
         shot_or_tmstp = traces.ryd_data.shot_or_tmstp
         peak_df = pd.DataFrame()
@@ -62,9 +71,13 @@ class PeaksSummaryAccessor:
         for shot, trace in tqdm(traces.groupby(shot_or_tmstp)):
             if type(shot) is np.datetime64:
                 shot = [shot]
-            df = trace.peaks.get_peak_description(height, prominence, threshold, distance, width, sign=sign)
-            df.index = pd.MultiIndex.from_tuples([[i, *shot] for i in range(df.shape[0])],
-                                                 names=["peak_number", *index_names])
+            df = trace.peaks.get_peak_description(
+                height, prominence, threshold, distance, width, sign=sign
+            )
+            df.index = pd.MultiIndex.from_tuples(
+                [[i, *shot] for i in range(df.shape[0])],
+                names=["peak_number", *index_names],
+            )
             peak_df = peak_df.append(df)
         return peak_df
 
@@ -79,8 +92,8 @@ class PeaksAccessor:
         wavelet_transform = cwt(self.trace, wavelet, widths_in_pixels)
         return xr.DataArray(
             wavelet_transform,
-            coords={'time': self.trace.time, 'width': widths},
-            dims=['width', 'time']
+            coords={"time": self.trace.time, "width": widths},
+            dims=["width", "time"],
         )
 
     def integrate(self, height=0.03, sign=-1):
@@ -101,7 +114,9 @@ class PeaksAccessor:
         time_values = np.sort(self.trace.time.values)
         return time_values[1] - time_values[0]
 
-    def _find_peaks(self, height=0, prominence=0, threshold=0, distance=0, width=0, sign=-1):
+    def _find_peaks(
+        self, height=0, prominence=0, threshold=0, distance=0, width=0, sign=-1
+    ):
         trace = sign * self.trace
         return find_peaks(
             trace,
@@ -109,22 +124,20 @@ class PeaksAccessor:
             distance=self.time_to_pixel(distance),
             width=self.time_to_pixel(width),
             prominence=prominence,
-            threshold=threshold
+            threshold=threshold,
         )
 
     def find_peaks(self, height=0, prominence=0, threshold=0, distance=0, width=0):
-        peaks_index, properties = self._find_peaks(height, prominence, threshold, distance, width)
+        peaks_index, properties = self._find_peaks(
+            height, prominence, threshold, distance, width
+        )
         return self.trace[peaks_index]
 
     def convolve_wavelet(self, wavelet, width):
         width_in_pixels = width / self.time_scale
 
         wavelet = convolve_wavelet(self.trace, wavelet, width_in_pixels)
-        return xr.DataArray(
-            wavelet,
-            coords=self.trace.coords,
-            dims=self.trace.dims
-        )
+        return xr.DataArray(wavelet, coords=self.trace.coords, dims=self.trace.dims)
 
     def find_peaks_wavelet(self, width=0.8, prominence=0.014):
         transformed = self.convolve_wavelet(wavelet=ricker, width=width)
@@ -139,8 +152,12 @@ class PeaksAccessor:
         """Returns a given time in pixels. if time is None, return None"""
         return index * self.time_scale
 
-    def get_peak_description(self, height=0, prominence=0, threshold=0, distance=0, width=0, sign=-1):
-        peaks_index, properties = self._find_peaks(height, prominence, threshold, distance, width, sign=sign)
+    def get_peak_description(
+        self, height=0, prominence=0, threshold=0, distance=0, width=0, sign=-1
+    ):
+        peaks_index, properties = self._find_peaks(
+            height, prominence, threshold, distance, width, sign=sign
+        )
         description = pd.DataFrame(properties)
         for prop in ["left_bases", "right_bases", "widths", "left_ips", "right_ips"]:
             if prop in description:
@@ -151,15 +168,20 @@ class PeaksAccessor:
 
 def convolve_wavelet(trace, wavelet, width):
     length = min(10 * width, len(trace))
-    return convolve(trace, wavelet(length, width), mode='same')
+    return convolve(trace, wavelet(length, width), mode="same")
 
 
 def summarize_peak_description(peak_df: pd.DataFrame):
-    groupby = peak_df.groupby([var for var in peak_df.index.names if var != "peak_number"])
+    groupby = peak_df.groupby(
+        [var for var in peak_df.index.names if var != "peak_number"]
+    )
     summary = groupby.mean()
     summary.index.name = "shot"
-    summary = xr.DataArray(summary.values, dims=["shot", "variable"],
-                           coords=dict(shot=summary.index, variable=summary.columns))
+    summary = xr.DataArray(
+        summary.values,
+        dims=["shot", "variable"],
+        coords=dict(shot=summary.index, variable=summary.columns),
+    )
     summary = summary.to_dataset("variable")
 
     counts = groupby.apply(len)

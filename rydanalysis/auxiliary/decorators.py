@@ -2,6 +2,7 @@ class cached_property:
     """
     Descriptor (non-data) for building an attribute on-demand on first use.
     """
+
     def __init__(self, factory):
         """
         <factory> is called such: factory(instance) to build the attribute.

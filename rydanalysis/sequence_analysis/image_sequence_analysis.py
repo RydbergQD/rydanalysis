@@ -54,8 +54,12 @@ class ImageParameters:
         density = imaging.density
         density_masked = self._apply_mask(density)
 
-        res = [self._apply_fits(image) for tmstp, image
-               in tqdm(density_masked.groupby("tmstp"), desc='fit images', leave=False)]
+        res = [
+            self._apply_fits(image)
+            for tmstp, image in tqdm(
+                density_masked.groupby("tmstp"), desc="fit images", leave=False
+            )
+        ]
         fit_ds, summary = list(zip(*res))
         fit_ds = xr.concat(fit_ds, dim="tmstp")
         summary = xr.DataArray(pd.concat(summary, axis=1), dims=["variable", "tmstp"])
@@ -69,13 +73,18 @@ class ImageParameters:
         absorption_images = images[self.atom_name] - background
         light_images = images[self.light_name] - background
 
-        return AbsorptionImaging(absorption_images, light_images, t_exp=t_exp, binning=binning,
-                                 transition=LiveAnalysisTransition())
+        return AbsorptionImaging(
+            absorption_images,
+            light_images,
+            t_exp=t_exp,
+            binning=binning,
+            transition=LiveAnalysisTransition(),
+        )
 
     def _apply_mask(self, dataset_or_array):
         mask_vertices = self.mask
         masked = dataset_or_array.polygon_mask.apply_mask(mask_vertices)
-        return masked.dropna(dim='x', how='all').dropna(dim='y', how='all')
+        return masked.dropna(dim="x", how="all").dropna(dim="y", how="all")
 
     def _find_center(self, image: xr.DataArray):
         slice_option = self.slice_option
@@ -86,16 +95,18 @@ class ImageParameters:
         elif slice_option == "manual":
             position_x = self.slice_position_x
             position_y = self.slice_position_y
-            c = image.sel(x=position_x, y=position_y, method='nearest')
-            return xr.Dataset(dict(x=c.x.values, y=c.y.values, amp=c.values),
-                              coords={"tmstp": image.tmstp})
+            c = image.sel(x=position_x, y=position_y, method="nearest")
+            return xr.Dataset(
+                dict(x=c.x.values, y=c.y.values, amp=c.values),
+                coords={"tmstp": image.tmstp},
+            )
         else:
             raise NotImplementedError("This method is not yet implemented :(")
 
     def _apply_fits(self, image):
         center = self._find_center(image)
-        fit_x = fit_slice(image, center, 'x')
-        fit_y = fit_slice(image, center, 'y')
+        fit_x = fit_slice(image, center, "x")
+        fit_y = fit_slice(image, center, "y")
         fit_2d = fit_2d_gaussian(image, fit_x, fit_y)
 
         fits = {"2d_": fit_2d, "slice_x_": fit_x, "slice_y_": fit_y}
@@ -106,7 +117,7 @@ class ImageParameters:
 
 
 def find_maximum(image, mask_vertices):
-    filtered = gaussian_filter(image, sigma=2, mode='nearest')
+    filtered = gaussian_filter(image, sigma=2, mode="nearest")
     filtered = xr.DataArray(filtered, coords=image.coords)
     image_masked = image.polygon_mask.apply_mask(mask_vertices)
 
@@ -115,31 +126,36 @@ def find_maximum(image, mask_vertices):
     return maximum
 
 
-def fit_slice(image: xr.DataArray, center, variable='x'):
-    fixed = 'y' if variable == 'x' else 'x'
-    slice_x = image.sel({fixed: center[fixed].values}, drop=True, method='nearest')
+def fit_slice(image: xr.DataArray, center, variable="x"):
+    fixed = "y" if variable == "x" else "x"
+    slice_x = image.sel({fixed: center[fixed].values}, drop=True, method="nearest")
     slice_x = slice_x.dropna(dim=variable)
     model = GaussianModel()
 
-    params = model.guess(gaussian_filter(slice_x.values, sigma=1),
-                         x=slice_x[variable].values)
-    return model.fit(slice_x.values, x=slice_x[variable], params=params, nan_policy='omit')
+    params = model.guess(
+        gaussian_filter(slice_x.values, sigma=1), x=slice_x[variable].values
+    )
+    return model.fit(
+        slice_x.values, x=slice_x[variable], params=params, nan_policy="omit"
+    )
 
 
 def fit_2d_gaussian(image, fit_x, fit_y):
     model = Gaussian2D()
-    amp = np.mean([fit_x.best_values['amplitude'], fit_y.best_values['amplitude']])
-    cen_x = fit_x.best_values['center']
-    cen_y = fit_y.best_values['center']
-    sig_x = fit_x.best_values['sigma']
-    sig_y = fit_y.best_values['sigma']
+    amp = np.mean([fit_x.best_values["amplitude"], fit_y.best_values["amplitude"]])
+    cen_x = fit_x.best_values["center"]
+    cen_y = fit_y.best_values["center"]
+    sig_x = fit_x.best_values["sigma"]
+    sig_y = fit_y.best_values["sigma"]
 
-    params = model.make_params(amp=amp, cen_x=cen_x, cen_y=cen_y, sig_x=sig_x, sig_y=sig_y)
+    params = model.make_params(
+        amp=amp, cen_x=cen_x, cen_y=cen_y, sig_x=sig_x, sig_y=sig_y
+    )
     return model.fit(image, params=params)
 
 
 def summarize_fit(fit_ds, tmstp, center):
-    summary = fit_ds.to_array().sel(fit='value', drop=True).to_series()
+    summary = fit_ds.to_array().sel(fit="value", drop=True).to_series()
     summary["center_x"] = center.x.values
     summary["center_y"] = center.y.values
     summary.name = tmstp
