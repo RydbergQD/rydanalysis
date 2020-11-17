@@ -4,7 +4,8 @@ import datetime
 from dataclasses import dataclass, field
 from typing import Any
 
-from rydanalysis.data_structure.extract_old_structure import OldStructure, load_data
+from rydanalysis.data_structure.old_structure import OldStructure
+from rydanalysis.data_structure.extract_data import load_data
 from rydanalysis.sequence_analysis import LiveAnalysis
 
 

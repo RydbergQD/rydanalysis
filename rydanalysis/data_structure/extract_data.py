@@ -30,7 +30,7 @@ def analyze_existing_h5(destiny_path: Path) -> Iterable[pd.DatetimeIndex]:
         data = load_data(destiny_path, lazy=True, to_multiindex=False)
         time = update_time(data)
     except OSError:
-        return []
+        return [], None
     tmstps = map(pd.to_datetime, data.tmstp.values)
     return tmstps, time
 

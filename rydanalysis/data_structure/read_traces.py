@@ -149,7 +149,7 @@ class TraceReaderTRC(TraceReader):
 
     @staticmethod
     def get_index(trace):
-        return trace.index.values
+        return trace.x
 
 
 class TraceReaderCSV(TraceReader):
@@ -186,7 +186,7 @@ class TraceReaderCSV(TraceReader):
 
     @staticmethod
     def get_index(trace):
-        return trace.x
+        return trace.index.values
 
 
 def read_traces(
