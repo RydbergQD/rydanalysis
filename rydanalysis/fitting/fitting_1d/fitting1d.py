@@ -110,7 +110,7 @@ class DampedCosineModel(Model):
                 0.5
                 * amp
                 * (
-                    np.cos(2 * np.pi * freq * x + 2 * np.pi * phase)
+                    np.cos(2 * np.pi * freq * x + 2 * np.pi * phase / 360)
                     * np.exp(-x * decay)
                 )
                 + offset
