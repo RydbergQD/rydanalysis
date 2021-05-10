@@ -127,7 +127,7 @@ class PeaksAccessor:
         freq1=1, freq2=1/2e-3, 
     ):
         trace = self.butter_filter(freq1, freq2)
-        trace = sign * trace
+        trace = sign * trace.flatten()
         return find_peaks(
             trace,
             height=height,

@@ -62,7 +62,8 @@ class MagnCalculator:
 
     def fit_result(self, peaks):
         kde = self.gaussian_kde(peaks)
-        result = self.model.fit(kde(self.bins), x=self.bins, params=self.params)
+        result = self.model.fit(kde(self.bins), x=self.bins, params=self.params, method="powell")
+        result = self.model.fit(kde(self.bins), x=self.bins, params=result.params)
         return result
 
     def get_magn(self, peaks, to_dict=True):
@@ -89,10 +90,10 @@ class MagnCalculator:
         ax.legend()
         return ax
 
-    def get_phase_fit(self, peak_df, model=CosineModel(), params=None, to_dict=True):
+    def get_phase_fit(self, peak_df, model=CosineModel(), params=None, to_dict=True, freq=1/360):
         if params is None:
             params = model.make_params()
-            params.add("freq", value=1/180, vary=False)
+            params.add("freq", value=freq, vary=False)
         phase_scan = peak_df.peak_time.groupby("PhaseShift").apply(self.get_magn)
         phase_scan = phase_scan.unstack()
         phase_fit = model.fit(phase_scan["magn"], x=phase_scan.index, params=params,
@@ -106,7 +107,7 @@ class MagnCalculator:
         if ax is None:
             fig, ax = plt.subplots()
         ax.errorbar(phase_fit.data.index, phase_fit.data, 1/phase_fit.weights, linestyle='', marker='o')
-        phases = np.linspace(0, 180, 51)
+        phases = np.linspace(0, 1/phase_fit.params["freq"].value, 51)
         ax.plot(phases, phase_fit.eval(x=phases))
         ax.set_xlabel("phase [°]")
         ax.set_ylabel("magnetization")
@@ -127,10 +128,17 @@ class MagnCalculator:
         z_magn = peak_df.peak_time.groupby(names).progress_apply(self.get_magn)
         return z_magn.unstack()
 
-    def get_magn_df(self, peak_df):
+    def get_magn_df_ramsey(self, peak_df):
         peak_xy = peak_df.xs([1, 1], level=["InitON", "Roff"], drop_level=True)
         magn_df = self.get_amp_df(peak_xy)
         peak_z = peak_df.xs([1, 0], level=["InitON", "Roff"], drop_level=True)
+        z_df = self.get_z_magn_df(peak_z)
+        magn_df["z_magn"] = z_df["magn"]
+        magn_df["z_magn_stderr"] = z_df["magn_stderr"]
+        return magn_df
+
+    def get_magn_df(self, peak_xy, peak_z):
+        magn_df = self.get_amp_df(peak_xy)
         z_df = self.get_z_magn_df(peak_z)
         magn_df["z_magn"] = z_df["magn"]
         magn_df["z_magn_stderr"] = z_df["magn_stderr"]
