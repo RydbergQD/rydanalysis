@@ -158,7 +158,7 @@ class PCAXarray(decomposition.PCA):
         stacked_images = self.stack(images)
         stacked_components = self.stack(self.components_)
         mask = np.logical_not(stacked_images.isnull())
-        mask = mask.all([dim for dim in mask.dims if dim is not "image_coords"])
+        mask = mask.all([dim for dim in mask.dims if dim != "image_coords"])
 
         masked_images = stacked_images.dropna("image_coords")
         masked_components = stacked_components.where(mask, drop=True)

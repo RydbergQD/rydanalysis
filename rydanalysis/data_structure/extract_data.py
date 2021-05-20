@@ -1,4 +1,5 @@
 from typing import List, Iterable
+import numpy as np
 
 import pandas as pd
 from pathlib import Path
@@ -30,7 +31,7 @@ def analyze_existing_h5(destiny_path: Path) -> Iterable[pd.DatetimeIndex]:
         data = load_data(destiny_path, lazy=True, to_multiindex=False)
         time = update_time(data)
     except OSError:
-        return []
+        return [], None
     tmstps = map(pd.to_datetime, data.tmstp.values)
     return tmstps, time
 
@@ -135,3 +136,47 @@ def read_raw_data(
         raw_data["scope_traces"] = traces
     raw_data["parameters"] = read_parameters(tmstps, path, strftime, **csv_kwargs)
     return raw_data
+
+
+def update_data(
+    path, csv_path="peak_df.csv",
+    height=0.0008,
+    prominence=0.0001,
+    threshold=None,
+    distance=None,
+    width=None,
+    sign=-1,
+    freq1=1, freq2=1/2e-3
+):
+    data = load_data(path, to_multiindex=False, lazy=None)
+    try:
+        peak_df = pd.read_csv("peak_df.csv")
+        print("Found exisiting peak_df.")
+        existing_tmstps = set(np.unique(pd.to_datetime(np.unique(peak_df["tmstp"]))))
+        all_tmstps = set(data.tmstp.values)
+        new_tmstps = list(all_tmstps - existing_tmstps)
+        shot = get_shot_multiindex(data.parameters.to_pandas())
+        peak_df = peak_df.set_index(["peak_number"] + list(shot.names))
+        if len(new_tmstps) != 0:
+            print("Add new peaks to df...")
+            new_data = data.sel(tmstp=new_tmstps, drop=True)
+            new_data = raw_data_to_multiindex(new_data)
+            traces = new_data.scope_traces
+            traces["time"] = traces.time * 1e6
+            new_peak_df = traces.peaks_summary.get_peak_description(
+                height, prominence, threshold, distance, width, sign=sign,
+                freq1=freq1, freq2=freq2
+            )
+            peak_df = pd.concat([peak_df, new_peak_df])
+            peak_df.to_csv("peak_df.csv")
+        data = raw_data_to_multiindex(data)
+    except FileNotFoundError:
+        data = raw_data_to_multiindex(data)
+        traces = data.scope_traces
+        traces["time"] = traces.time * 1e6
+        peak_df = traces.peaks_summary.get_peak_description(
+            height, prominence, threshold, distance, width, sign=sign,
+                freq1=freq1, freq2=freq2
+        )
+        peak_df.to_csv("peak_df.csv")
+    return data, peak_df

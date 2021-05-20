@@ -89,6 +89,10 @@ class CosineModel(Model):
         peak_freq = freqs[power[pos_mask].argmax()]
         return peak_freq
 
+    @staticmethod
+    def _get_phase(data, x=None):
+        pass
+
     __init__.__doc__ = COMMON_INIT_DOC
     guess.__doc__ = COMMON_GUESS_DOC
 
@@ -110,7 +114,7 @@ class DampedCosineModel(Model):
                 0.5
                 * amp
                 * (
-                    np.cos(2 * np.pi * freq * x + 2 * np.pi * phase)
+                    np.cos(2 * np.pi * freq * x + 2 * np.pi * phase / 360)
                     * np.exp(-x * decay)
                 )
                 + offset

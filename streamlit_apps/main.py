@@ -10,7 +10,7 @@ run in terminal:
 The last number is the maximally allowed size for uploading raw_data in MBy
 """
 import streamlit as st
-from rydanalysis.data_structure.extract_old_structure import OldStructure
+from rydanalysis.data_structure.old_structure import OldStructure
 from rydanalysis.sequence_analysis import LiveAnalysis
 from streamlit_apps.import_export import page_import_export, get_default_path
 from rydanalysis.auxiliary.streamlit_utils.st_state_patch import get_state

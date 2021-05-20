@@ -1,4 +1,6 @@
 from scipy.signal import find_peaks, convolve
+from scipy.signal.filter_design import butter
+from scipy.signal.signaltools import filtfilt
 from scipy.signal.wavelets import cwt, ricker
 import xarray as xr
 import numpy as np
@@ -63,23 +65,25 @@ class PeaksSummaryAccessor:
         distance=None,
         width=2e-9,
         sign=-1,
+        freq1=1, freq2=1/2e-3
     ):
         traces = self.traces
         shot_or_tmstp = traces.ryd_data.shot_or_tmstp
-        peak_df = pd.DataFrame()
+        peak_df = []
         index_names = traces.ryd_data.index.names
         for shot, trace in tqdm(traces.groupby(shot_or_tmstp)):
             if type(shot) is np.datetime64:
                 shot = [shot]
             df = trace.peaks.get_peak_description(
-                height, prominence, threshold, distance, width, sign=sign
+                height, prominence, threshold, distance, width, sign=sign,
+                freq1=freq1, freq2=freq2
             )
             df.index = pd.MultiIndex.from_tuples(
                 [[i, *shot] for i in range(df.shape[0])],
                 names=["peak_number", *index_names],
             )
-            peak_df = peak_df.append(df)
-        return peak_df
+            peak_df.append(df)
+        return pd.concat(peak_df)
 
 
 @xr.register_dataarray_accessor("peaks")
@@ -114,10 +118,16 @@ class PeaksAccessor:
         time_values = np.sort(self.trace.time.values)
         return time_values[1] - time_values[0]
 
+    def butter_filter(self, freq1=1, freq2=1/2e-3, btype="bandpass"):
+        b, a = butter(3, [self.time_scale*freq1, self.time_scale*freq2], btype=btype)
+        return filtfilt(b, a, self.trace.values)
+
     def _find_peaks(
-        self, height=0, prominence=0, threshold=0, distance=0, width=0, sign=-1
+        self, height=None, prominence=None, threshold=None, distance=None, width=None, sign=-1,
+        freq1=1, freq2=1/2e-3, 
     ):
-        trace = sign * self.trace
+        trace = self.butter_filter(freq1, freq2)
+        trace = sign * trace.flatten()
         return find_peaks(
             trace,
             height=height,
@@ -127,9 +137,10 @@ class PeaksAccessor:
             threshold=threshold,
         )
 
-    def find_peaks(self, height=0, prominence=0, threshold=0, distance=0, width=0):
+    def find_peaks(self, height=0, prominence=0, threshold=0, distance=0, width=0,
+        freq1=1, freq2=1/2e-3):
         peaks_index, properties = self._find_peaks(
-            height, prominence, threshold, distance, width
+            height, prominence, threshold, distance, width, freq1, freq2
         )
         return self.trace[peaks_index]
 
@@ -153,10 +164,12 @@ class PeaksAccessor:
         return index * self.time_scale
 
     def get_peak_description(
-        self, height=0, prominence=0, threshold=0, distance=0, width=0, sign=-1
+        self, height=0, prominence=0, threshold=0, distance=0, width=0, sign=-1,
+        freq1=1, freq2=1/2e-3
     ):
         peaks_index, properties = self._find_peaks(
-            height, prominence, threshold, distance, width, sign=sign
+            height, prominence, threshold, distance, width, sign=sign,
+            freq1=freq1, freq2=freq2
         )
         description = pd.DataFrame(properties)
         for prop in ["left_bases", "right_bases", "widths", "left_ips", "right_ips"]:
@@ -164,6 +177,9 @@ class PeaksAccessor:
                 description[prop] *= self.time_scale
         description["peak_time"] = self.pixel_to_time(peaks_index)
         return description
+
+    def plot_peaks(self):
+        pass
 
 
 def convolve_wavelet(trace, wavelet, width):
