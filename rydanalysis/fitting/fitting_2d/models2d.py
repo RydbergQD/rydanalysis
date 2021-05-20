@@ -70,6 +70,7 @@ class Gaussian2D(Model2d):
             data.values
         )
 
+
         if np.isnan(sig_y):
             sig_y = sig_x
 

@@ -668,6 +668,7 @@ class ModelResult2d(ModelResult):
         data.plot(ax=ax, label="data", center=False, **data_kws)
 
         best_fit = reduce_complex(self.model.eval(self.params, **xy_array_dense))
+        best_fit = best_fit.transpose(*self.data.dims)
         best_fit.plot.contour(colors=fit_color, linestyles=fitfmt, ax=ax, **fit_kws)
 
         ax.set_title(self.model.name)
@@ -852,6 +853,7 @@ class ModelResult2d(ModelResult):
             ax = plt.gca(**ax_kws)
 
         residuals = reduce_complex(self.eval()) - reduce_complex(self.data)
+        residuals = residuals.transpose(*self.data.dims)
         if weighted and self.weights is not None:
             residuals *= abs(self.weights)
 
