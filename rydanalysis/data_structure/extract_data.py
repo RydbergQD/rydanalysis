@@ -91,7 +91,7 @@ def get_shot_multiindex(parameters):
 def load_data(path, lazy=None, to_multiindex=True):
     with dask.config.set(**{"array.slicing.split_large_chunks": False}):
         data = xr.open_mfdataset(
-            path.glob("*.h5"), join="left", data_vars="minimal", chunks={"tmstp": 1}
+            path.glob("*.h5"), join="left", data_vars="minimal", chunks={"tmstp": 1}, engine="netcdf4"
         )
     if lazy is None:
         lazy = len(data.tmstp) > 500
