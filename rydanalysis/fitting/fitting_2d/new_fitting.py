@@ -31,8 +31,8 @@ class Image:
         center_y = float((data * data.y).sum() / data.sum())
         row = self.data.sel(x=center_x, method="nearest")
         col = self.data.sel(y=center_y, method="nearest")
-        sig_x = float(np.sqrt(((data.x - center_x)**2 * col).sum()/col.sum())) / 2
-        sig_y = float(np.sqrt(((data.y - center_y)**2 * row).sum()/row.sum())) / 2
+        sig_x = float(np.sqrt(abs((data.x - center_x)**2 * col).sum()/col.sum())) / 2
+        sig_y = float(np.sqrt(abs((data.y - center_y)**2 * row).sum()/row.sum())) / 2
         height = np.nanmax(self.data)
         return pd.Series(
             {
@@ -84,8 +84,8 @@ def get_atom_number(height, sig_x, sig_y, unit='um'):
 
 def get_3d_density(amp, sig_x, sig_y, unit='um'):
     N = get_atom_number(amp, sig_x, sig_y, unit)
-    sig_short = sig_y
-    sig_long = np.sqrt(2*sig_x**2 - sig_short**2)
+    sig_short, sig_long = np.sort([sig_x, sig_y])
+    sig_long = np.sqrt(2*sig_long**2 - sig_short**2)
     return 1/(np.sqrt((2*np.pi)**3)*sig_short**2*sig_long) * N * 1e12
 
 
