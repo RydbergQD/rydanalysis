@@ -1,9 +1,11 @@
 from distributed.worker import weight
+import pandas as pd
 from rydanalysis.fitting.fitting_1d.fitting1d import CosineModel, fit_results_to_dict
 from lmfit import Model, Parameters
 from functools import cached_property
 import numpy as np
 from scipy.stats.kde import gaussian_kde
+from scipy.optimize import minimize_scalar
 import matplotlib.pyplot as plt
 
 
@@ -143,6 +145,12 @@ class MagnCalculator:
         magn_df["z_magn"] = z_df["magn"]
         magn_df["z_magn_stderr"] = z_df["magn_stderr"]
         return magn_df
+
+    def maximum_likelyhood(self, df):
+        def L(magn):
+            return -np.product(self.model_func(df, magn))
+        res = minimize_scalar(L, [-0.5, 0.5], method="bounded", bounds=[-0.7, 0.7])
+        return pd.Series([res.x, res.fun], index=["magn", "prob"])
 
 
 class MagnCalculator3lvl(MagnCalculator):
