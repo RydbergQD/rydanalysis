@@ -1,4 +1,6 @@
 import numpy as np
+from scipy.fft import rfft, rfftfreq
+from scipy.signal import peak_widths
 from lmfit import Model
 from lmfit.model import ModelResult
 from lmfit.models import COMMON_INIT_DOC, COMMON_GUESS_DOC, update_param_vals
@@ -34,7 +36,7 @@ def fit_params_to_lmfit_params(fit_params, model):
     return model.make_params(**params.to_dict())
 
 
-class CosineModel(Model):
+class DampedCosineModel(Model):
     """Cosine model, with Parameters: ``freq``, ``amp``, ``phase``, ``offset``."""
 
     def __init__(self, independent_vars=["x"], prefix="", nan_policy="raise", **kwargs):
@@ -46,34 +48,56 @@ class CosineModel(Model):
             }
         )
 
-        def cosine(x, freq=1.0, amp=1.0, phase=0.0, offset=0.0):
-            return amp * np.cos(2 * np.pi * (freq * x + phase)) + offset
-
-        super(CosineModel, self).__init__(cosine, **kwargs)
+        super(DampedCosineModel, self).__init__(self._damped_cosine, **kwargs)
         self._set_paramhints_prefix()
+    
+    @staticmethod
+    def _damped_cosine(x, freq=1.0, amp=1.0, phase=0.0, gamma=0.0, offset=0):
+            return amp * np.cos(2 * np.pi * (freq * x + phase/360)) * np.exp(-gamma * x) + offset
 
     def _set_paramhints_prefix(self):
         self.set_param_hint("amp", min=0)
         self.set_param_hint("phase")
 
-    def guess(self, data, x=None, phase=0, **kwargs):
-        """Estimate initial model parameter values from data."""
-        amp_val = (np.max(data) - np.min(data)) / 2
-        offset_val = np.mean(data)
-        pars = self.make_params(amp=amp_val, offset=offset_val)
-        if x is not None:
-            freq_val = self._get_freq(data, x)
-            pars = self.make_params(amp=amp_val, offset=offset_val, freq=freq_val)
+    def get_fft(self, data, x=None):
+        if x is None:
+            x = np.arange(len(data))
+        # build frequency array
+        n_samples = len(data)
+        fs = (x[1] - x[0])
+        f = rfftfreq(n_samples, fs)
 
-            pars["amp"].vary = False
-            pars["offset"].vary = False
-            pars["freq"].vary = False
-            initial_fit = self.fit(data, pars, x=x, method="powell")
-            pars = initial_fit.params
-            pars["amp"].vary = True
-            pars["offset"].vary = True
-            pars["freq"].vary = True
-        return update_param_vals(pars, self.prefix, **kwargs)
+        # compute fft
+        fft = rfft(data) / n_samples * 2
+        return f, fft
+
+    def find_max(self, data, x=None):
+        if x is None:
+            x = np.arange(data)
+        data2 = np.abs(data)**2
+        data2[0] = 0
+        fft_max_i = np.argmax(data2)
+
+        widths, _, _, _ = peak_widths(data2, [fft_max_i])
+        gamma = widths[0] / (x[1] - x[0])
+        amp = np.sqrt(data2[fft_max_i])
+
+        freq = x[fft_max_i]
+        fft_max = data[fft_max_i]
+        phase = np.arctan2(fft_max.imag, fft_max.real) * 360/(2*np.pi)
+        return gamma, amp, freq, phase
+
+    def guess(self, data, x=None, **kwargs):
+        f, fft = self.get_fft(data, x=x)
+
+        gamma, amp, freq, phase = self.find_max(fft, x=f)
+        offset = np.mean(data)
+
+        params = self.make_params(amp=amp, offset=offset, phase=phase, freq=freq, gamma=gamma)
+        params["amp"].min = 0
+        params["freq"].min = 0
+        params["gamma"].min = 0
+        return update_param_vals(params, self.prefix, **kwargs)
 
     @staticmethod
     def _get_freq(data, x=None):
@@ -97,7 +121,7 @@ class CosineModel(Model):
     guess.__doc__ = COMMON_GUESS_DOC
 
 
-class DampedCosineModel(Model):
+class CosineModel(Model):
     """Cosine model, with Parameters: ``freq``, ``amp``, ``phase``, ``offset``."""
 
     def __init__(self, independent_vars=["x"], prefix="", nan_policy="raise", **kwargs):
@@ -109,46 +133,56 @@ class DampedCosineModel(Model):
             }
         )
 
-        def damped_cosine(x, freq=1.0, amp=1.0, phase=0.0, offset=0.0, decay=0):
-            return (
-                0.5
-                * amp
-                * (
-                    np.cos(2 * np.pi * freq * x + 2 * np.pi * phase / 360)
-                    * np.exp(-x * decay)
-                )
-                + offset
-            )
-
-        super(DampedCosineModel, self).__init__(damped_cosine, **kwargs)
+        super(CosineModel, self).__init__(self._damped_cosine, **kwargs)
         self._set_paramhints_prefix()
+    
+    @staticmethod
+    def _damped_cosine(x, freq=1.0, amp=1.0, phase=0.0, gamma=0.0, offset=0):
+            return amp * np.cos(2 * np.pi * (freq * x + phase/360)) * np.exp(-gamma * x) + offset
 
     def _set_paramhints_prefix(self):
         self.set_param_hint("amp", min=0)
         self.set_param_hint("phase")
 
-    def guess(self, data, x=None, phase=0, **kwargs):
-        """Estimate initial model parameter values from data."""
-        amp_val = np.max(data) - np.min(data)
-        offset_val = np.mean(data)
-        pars = self.make_params(amp=amp_val, offset=offset_val)
-        if x is not None:
-            freq_val = self._get_freq(data, x)
-            pars = self.make_params(
-                amp=amp_val, offset=offset_val, freq=freq_val, decay=0
-            )
-            pars["amp"].vary = False
-            pars["offset"].vary = False
-            pars["freq"].vary = False
-            pars["decay"].vary = False
-            initial_fit = self.fit(data, pars, x=x, method="powell")
-            pars = initial_fit.params
-            pars["amp"].vary = True
-            pars["offset"].vary = True
-            pars["freq"].vary = True
+    def get_fft(self, data, x=None):
+        if x is None:
+            x = np.arange(len(data))
+        # build frequency array
+        n_samples = len(data)
+        fs = (x[1] - x[0])
+        f = rfftfreq(n_samples, fs)
 
-            pars["decay"].vary = True
-        return update_param_vals(pars, self.prefix, **kwargs)
+        # compute fft
+        fft = rfft(data) / n_samples * 2
+        return f, fft
+
+    def find_max(self, data, x=None):
+        if x is None:
+            x = np.arange(data)
+        data2 = np.abs(data)**2
+        data2[0] = 0
+        fft_max_i = np.argmax(data2)
+
+        widths, _, _, _ = peak_widths(data2, [fft_max_i])
+        gamma = widths[0] / (x[1] - x[0])
+        amp = np.sqrt(data2[fft_max_i])
+
+        freq = x[fft_max_i]
+        fft_max = data[fft_max_i]
+        phase = np.arctan2(fft_max.imag, fft_max.real) * 360/(2*np.pi)
+        return gamma, amp, freq, phase
+
+    def guess(self, data, x=None, **kwargs):
+        f, fft = self.get_fft(data, x=x)
+
+        gamma, amp, freq, phase = self.find_max(fft, x=f)
+        offset = np.mean(data)
+
+        params = self.make_params(amp=amp, offset=offset, phase=phase, freq=freq, gamma=gamma)
+        params["amp"].min = 0
+        params["freq"].min = 0
+        params["gamma"].min = 0
+        return update_param_vals(params, self.prefix, **kwargs)
 
     @staticmethod
     def _get_freq(data, x=None):
@@ -163,6 +197,10 @@ class DampedCosineModel(Model):
         freqs = sample_freq[pos_mask]
         peak_freq = freqs[power[pos_mask].argmax()]
         return peak_freq
+
+    @staticmethod
+    def _get_phase(data, x=None):
+        pass
 
     __init__.__doc__ = COMMON_INIT_DOC
     guess.__doc__ = COMMON_GUESS_DOC
