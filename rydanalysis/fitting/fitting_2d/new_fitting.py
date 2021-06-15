@@ -79,6 +79,23 @@ class Image:
                     verticalalignment='bottom', transform=ax.transAxes)
         return ax
 
+    def plot_residuals(self, ax=None):
+        if ax is None:
+            _, ax = plt.subplots()
+        fit = gaussian(self.data.y, self.data.x, **self.fitgaussian[:-2])
+        residuals = self.data - fit
+        residuals.plot(ax=ax)
+        
+        ax.set_aspect("equal")
+        plt.text(0.95, 0.05, f"""
+            x : {self.fitgaussian["center_x"]}
+            y : {self.fitgaussian["center_y"]}
+            sig_x : {self.fitgaussian["sig_x"]}
+            sig_y : {self.fitgaussian["sig_y"]}""",
+                    fontsize=5, horizontalalignment='right',
+                    verticalalignment='bottom', transform=ax.transAxes)
+        return ax
+
 def get_atom_number(height, sig_x, sig_y, unit='um'):
     return 2 * np.pi *  np.abs(height * sig_x * sig_y) * 1e-12
 

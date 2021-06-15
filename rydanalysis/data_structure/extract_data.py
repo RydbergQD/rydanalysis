@@ -150,7 +150,7 @@ def update_data(
 ):
     data = load_data(path, to_multiindex=False, lazy=None)
     try:
-        peak_df = pd.read_csv("peak_df.csv")
+        peak_df = pd.read_csv(csv_path)
         print("Found exisiting peak_df.")
         existing_tmstps = set(np.unique(pd.to_datetime(np.unique(peak_df["tmstp"]))))
         all_tmstps = set(data.tmstp.values)
@@ -168,7 +168,7 @@ def update_data(
                 freq1=freq1, freq2=freq2
             )
             peak_df = pd.concat([peak_df, new_peak_df])
-            peak_df.to_csv("peak_df.csv")
+            peak_df.to_csv(csv_path)
         data = raw_data_to_multiindex(data)
     except FileNotFoundError:
         data = raw_data_to_multiindex(data)
@@ -178,5 +178,5 @@ def update_data(
             height, prominence, threshold, distance, width, sign=sign,
                 freq1=freq1, freq2=freq2
         )
-        peak_df.to_csv("peak_df.csv")
+        peak_df.to_csv(csv_path)
     return data, peak_df

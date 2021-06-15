@@ -1,11 +1,12 @@
 from distributed.worker import weight
 import pandas as pd
-from rydanalysis.fitting.fitting_1d.fitting1d import CosineModel, fit_results_to_dict
+from rydanalysis.fitting.fitting_1d.fitting1d import DampedCosineModel, fit_results_to_dict
 from lmfit import Model, Parameters
 from functools import cached_property
 import numpy as np
 from scipy.stats.kde import gaussian_kde
 from scipy.optimize import minimize_scalar
+from scipy.interpolate import CubicSpline
 import matplotlib.pyplot as plt
 
 
@@ -33,7 +34,9 @@ class MagnCalculator:
         return cls(peak_0.peak_time, peak_1.peak_time, bw_method, bins, rydberg_states)
 
     def gaussian_kde(self, peak):
-        return gaussian_kde(peak, self.bw_method)
+        kde = gaussian_kde(peak, self.bw_method)
+        spline = CubicSpline(self.bins, kde(self.bins))
+        return spline
 
     def model_func(self, x, magn):
         a = (2*magn + 1)/2
@@ -92,19 +95,20 @@ class MagnCalculator:
         ax.legend()
         return ax
 
-    def get_phase_fit(self, peak_df, model=CosineModel(), params=None, to_dict=True, freq=1/360):
-        if params is None:
-            params = model.make_params()
-            params.add("freq", value=freq, vary=False)
+    def get_phase_fit(self, peak_df, model=DampedCosineModel(), params=None, to_dict=True, freq=1/360):
         phase_scan = peak_df.peak_time.groupby("PhaseShift").apply(self.get_magn)
         phase_scan = phase_scan.unstack()
+        if params is None:
+            params = model.guess(phase_scan["magn"].values, x=phase_scan.index)
+            params.add("freq", value=freq, vary=False)
+            params.add("gamma", value=0, vary=False)
         phase_fit = model.fit(phase_scan["magn"], x=phase_scan.index, params=params,
          weights=1/phase_scan["magn_stderr"])
         if to_dict:
             phase_fit = fit_results_to_dict(phase_fit)
         return phase_fit
 
-    def plot_phase_fit(self, peak_df, model=CosineModel(), params=None, ax=None, freq=1/360):
+    def plot_phase_fit(self, peak_df, model=DampedCosineModel(), params=None, ax=None, freq=1/360):
         phase_fit = self.get_phase_fit(peak_df, model, params, to_dict=False, freq=freq)
         if ax is None:
             fig, ax = plt.subplots()
@@ -120,13 +124,18 @@ class MagnCalculator:
         amp_df = peak_df.groupby(names).progress_apply(self.get_phase_fit, freq=freq)
         return amp_df
 
-    def extract_names(self, peak_df):
-        names = [name for name in peak_df.index.names
-         if name not in ["peak_number", "tmstp", "PhaseShift"]]
+    def extract_names(self, peak_df, average_tmstp=True):
+        if average_tmstp:
+            columns = ["peak_number", "tmstp", "PhaseShift"]
+        else:
+            columns = ["peak_number", "PhaseShift"]
+        names = [name for name in peak_df.index.names if name not in columns]
         return names
 
-    def get_z_magn_df(self, peak_df):
-        names = self.extract_names(peak_df)
+
+    def get_z_magn_df(self, peak_df, average_tmstp=True, names=None):
+        if names is None:
+            names = self.extract_names(peak_df, average_tmstp)
         z_magn = peak_df.peak_time.groupby(names).progress_apply(self.get_magn)
         return z_magn.unstack()
 
@@ -148,9 +157,9 @@ class MagnCalculator:
 
     def maximum_likelyhood(self, df):
         def L(magn):
-            return -np.product(self.model_func(df, magn))
-        res = minimize_scalar(L, [-0.5, 0.5], method="bounded", bounds=[-0.7, 0.7])
-        return pd.Series([res.x, res.fun], index=["magn", "prob"])
+            return -np.sum(np.log(self.model_func(df, magn)))
+        res = minimize_scalar(L, [-0.5, 0.5], method="bounded", bounds=[-1, 1])
+        return res.x  # pd.Series([res.x, res.fun], index=["magn", "prob"])
 
 
 class MagnCalculator3lvl(MagnCalculator):
