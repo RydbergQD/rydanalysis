@@ -8,4 +8,8 @@ astropy
 prefect
 scikit-learn
 lmfit
-pytables
+tables
+pyyaml
+astropy
+tqdm
+lmfit
