@@ -44,7 +44,7 @@ class PeaksSummaryAccessor:
         Integrate ions on multiple traces bundled in an xarray DataArray or Dataset.
         Args:
             dim: Dimension along the peaks are integrated
-            height: minimal height of teh peaks
+            height: minimal height of the peaks
             sign: multiply with traces
 
         Returns:

@@ -92,7 +92,7 @@ def streamlit_save(old_structure, export_path, append):
         "append to old data", old_structure.append_to_old_data)
     if st.button('save to hdf5'):
         (export_path / 'Analysis').mkdir(parents=True, exist_ok=True)
-        old_structure.copy_sequences_variables(export_path)
+        # old_structure.copy_sequences_variables(export_path)
         old_structure.save_data(export_path / "raw_data", append)
 
 

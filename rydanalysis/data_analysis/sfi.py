@@ -102,8 +102,8 @@ class MagnCalculator:
             params = model.guess(phase_scan["magn"].values, x=phase_scan.index)
             params.add("freq", value=freq, vary=False)
             params.add("gamma", value=0, vary=False)
-        phase_fit = model.fit(phase_scan["magn"], x=phase_scan.index, params=params,
-         weights=1/phase_scan["magn_stderr"])
+        phase_fit = model.fit(phase_scan["magn"], x=phase_scan.index, params=params)#,
+         #weights=1/phase_scan["magn_stderr"])
         if to_dict:
             phase_fit = fit_results_to_dict(phase_fit)
         return phase_fit
@@ -165,7 +165,7 @@ class MagnCalculator:
 class MagnCalculator3lvl(MagnCalculator):
     state_2_color = "tab:brown"
     def __init__(self, peak_0, peak_1, peak_2, bw_method=5e-2, bins=np.linspace(0, 100, 101),
-     rydberg_states=["56S", "56P", "55S"]):
+     rydberg_states=["56S", "56P", "55P"]):
         super().__init__(peak_0, peak_1, bw_method=bw_method, bins=bins, rydberg_states=rydberg_states)
 
         self.peak_2 = peak_2
@@ -181,16 +181,37 @@ class MagnCalculator3lvl(MagnCalculator):
     @cached_property
     def params(self):
         params = Parameters()
-        params.add("a", value=0, min=-0.1, max=1.1)
-        params.add("b", value=0, min=-0.1, max=1.1)
-        #params.add("c", value=0, min=0, max=1)
+        params.add("magn", value=0.)
+        params.add("ancilla", value=0.,min=0)
+        #params.add("c", value=0.)
         return params
 
-    def model_func(self, x, a, b):
-        c=1-a-b
-        return a*self.kde_0(x) + b * self.kde_1(x) + c * self.kde_2(x)
+    def model_func(self, x, magn, ancilla):
+        a = (magn + 1/2)*(1-ancilla)
+        b = 1 - a - ancilla
+        return a*self.kde_0(x) + b * self.kde_1(x) + ancilla * self.kde_2(x)
 
-    def get_z_magn_df(self, peak_df):
-        names = self.extract_names(peak_df)
-        z_magn = peak_df.peak_time.groupby(names).progress_apply(self.get_magn)
-        return z_magn.unstack()
+
+class MagnCalculator1lvl(MagnCalculator):
+    def __init__(self, peak_0, peak_1, bw_method=5e-2, bins=np.linspace(0, 100, 101),
+     rydberg_states=["56S"]):
+        super().__init__(peak_0, peak_1, bw_method=bw_method, bins=bins, rydberg_states=rydberg_states)
+
+
+    def plot_calibration(self, ax=None):
+        ax = super().plot_calibration(ax=ax)
+        #ax.plot(self.bins, self.kde_2(self.bins), color=self.state_2_color)
+        #ax.hist(self.peak_2, bins=self.bins, alpha=0.7, label=self.states[2], density=True, color=self.state_2_color)
+        ax.legend()
+        return ax
+
+    @cached_property
+    def params(self):
+        params = Parameters()
+        params.add("a", value=0.)
+        #params.add("ancilla", value=0.,min=0)
+        #params.add("c", value=0.)
+        return params
+
+    def model_func(self, x, a):
+        return a/2*self.kde_0(x) + a/2 *self.kde_1(x)

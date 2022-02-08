@@ -56,11 +56,12 @@ def compare_tmstps(new_tmstps, old_tmstps):
 def read_parameters_single(
     tmstp: pd.Timestamp, path: Path, strftime: str = "%Y_%m_%d_%H.%M.%S", **csv_kwargs
 ) -> pd.Series:
+    print("hello")
     parameter_path = path / "Variables" / tmstp.strftime(strftime + ".txt")
     parameters = pd.read_csv(parameter_path, **csv_kwargs)
     parameters.name = tmstp
     parameters.index.name = None
-    parameters.drop("dummy", inplace=True)
+    # parameters.drop("dummy", inplace=True)
     return parameters
 
 

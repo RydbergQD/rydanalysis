@@ -23,6 +23,11 @@ class Image:
         mask = self.mask
         return X[mask], Y[mask]
 
+    def second_moment(self, center, index):
+        data = self.data
+        variance = (data.x - center)**2 * index
+        return float(np.sqrt(np.abs(variance.sum() / index.sum())) / 2)
+
     @cached_property
     def moments(self):
         data = self.data
@@ -31,8 +36,8 @@ class Image:
         center_y = float((data * data.y).sum() / data.sum())
         row = self.data.sel(x=center_x, method="nearest")
         col = self.data.sel(y=center_y, method="nearest")
-        sig_x = float(np.sqrt(abs((data.x - center_x)**2 * col).sum()/col.sum())) / 2
-        sig_y = float(np.sqrt(abs((data.y - center_y)**2 * row).sum()/row.sum())) / 2
+        sig_x = self.second_moment(center_x, col)
+        sig_y = self.second_moment(center_y, row)
         height = np.nanmax(self.data)
         return pd.Series(
             {
@@ -58,6 +63,8 @@ class Image:
         params = params[:-1]
         p, success = optimize.leastsq(_errorfunction, params)
         result =  pd.Series(p, index=params.index)
+        result["sig_x"] = abs(result["sig_x"])
+        result["sig_y"] = abs(result["sig_y"])
         result["N"] = get_atom_number(result["height"], result["sig_x"], result["sig_y"])
         result["density3d"] = get_3d_density(result["height"], result["sig_x"], result["sig_y"])
         return result
