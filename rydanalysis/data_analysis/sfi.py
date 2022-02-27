@@ -1,4 +1,3 @@
-from distributed.worker import weight
 import pandas as pd
 from rydanalysis.fitting.fitting_1d.fitting1d import DampedCosineModel, fit_results_to_dict
 from lmfit import Model, Parameters
