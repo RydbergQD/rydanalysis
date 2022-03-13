@@ -89,10 +89,10 @@ def get_shot_multiindex(parameters):
     return pd.MultiIndex.from_frame(variables.reset_index())
 
 
-def load_data(path, lazy=None, to_multiindex=True):
+def load_data(path, lazy=None, to_multiindex=True, engine="netcdf4"):
     with dask.config.set(**{"array.slicing.split_large_chunks": False}):
         data = xr.open_mfdataset(
-            path.glob("*.h5"), join="left", data_vars="minimal", chunks={"tmstp": 1}, engine="netcdf4"
+            path.glob("*.h5"), join="left", data_vars="minimal", chunks={"tmstp": 1}, engine=engine
         )
     if lazy is None:
         lazy = len(data.tmstp) > 500
