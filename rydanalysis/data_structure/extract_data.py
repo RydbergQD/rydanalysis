@@ -147,9 +147,10 @@ def update_data(
     distance=None,
     width=None,
     sign=-1,
-    freq1=1, freq2=1/2e-3
+    freq1=1, freq2=1/2e-3,
+    engine="netcdf4"
 ):
-    data = load_data(path, to_multiindex=False, lazy=None)
+    data = load_data(path, to_multiindex=False, lazy=None, engine=engine)
     try:
         peak_df = pd.read_csv(csv_path)
         print("Found exisiting peak_df.")
